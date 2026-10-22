@@ -1,0 +1,11 @@
+[
+  {
+    "id": "example-saas",
+    "name": "Herramienta SaaS de ejemplo",
+    "description": "Ejemplo de descripción neutral: automatiza una tarea concreta y permite comparar planes antes de contratar.",
+    "audience": "equipos pequeños que necesitan ahorrar tiempo",
+    "affiliate_url": "https://example.com/?ref=REEMPLAZAR_CON_TU_ID",
+    "commission_model": "Por verificar con el programa",
+    "affiliate_approved": false
+  }
+]
