@@ -1,0 +1,4 @@
+event_type,offer_id,amount,date,notes
+click,example-saas,0,2026-10-01,Ejemplo
+conversion,example-saas,0,2026-10-02,Ejemplo
+commission,example-saas,12.50,2026-10-03,Ejemplo no real
