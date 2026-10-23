@@ -5,7 +5,8 @@ This repository currently contains an isolated experimental implementation of a 
 ## What it does
 - Validates structured task/commission events.
 - Deduplicates event IDs to prevent replay-based double counting.
-- Calculates proposed commissions with decimal arithmetic.
+- Calculates proposed referral commissions with decimal arithmetic.
+- Calculates a separate, simulation-only proposal for first-party service usage and reversal events.
 - Requires an explicitly enabled fee policy and a confirmed source event.
 - Emits audit-friendly JSON; never executes payments or claims settlement is verified.
 
@@ -13,10 +14,10 @@ This repository currently contains an isolated experimental implementation of a 
 
 ```bash
 python -m unittest discover -s tests -v
-python -m agent_economy.cli
+python -m agent_economy.cli --help
 ```
 
-The sample policy is disabled, and all example events are synthetic. See [docs/AGENT_TO_AGENT_MONETIZATION.md](docs/AGENT_TO_AGENT_MONETIZATION.md) for the current opportunity shortlist, evidence, caveats, and next steps.
+The sample referral policy is disabled, and example events are synthetic. First-party billing is implemented as a separate proposal-only module; it has no commercial price default and does not charge customers. See [docs/AGENT_TO_AGENT_MONETIZATION.md](docs/AGENT_TO_AGENT_MONETIZATION.md), [docs/FACTURACION_SERVICIOS_PROPIOS_SIMULADA.md](docs/FACTURACION_SERVICIOS_PROPIOS_SIMULADA.md), and [docs/DOBLE_INGRESO_REFERIDOS_Y_SERVICIOS_PROPIOS_AR.md](docs/DOBLE_INGRESO_REFERIDOS_Y_SERVICIOS_PROPIOS_AR.md) for scope, evidence, caveats, and next steps.
 
 ## Important
-No live provider has been connected, no affiliate/program account has been approved, no settlement webhook is verified, and no revenue has been generated. Do not enable a policy until the provider's current terms and event contract have been validated.
+No live provider has been connected, no affiliate/program account has been approved, no settlement webhook is verified, and no revenue has been generated. Do not enable a policy until the provider's current terms, event contract, source of usage evidence, and payment reconciliation have been validated. `settlement_verified=false` is not a temporary UI flag; it must only change after independent verification.
