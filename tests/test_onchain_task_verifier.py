@@ -115,9 +115,11 @@ class OnChainTaskVerifierTests(unittest.TestCase):
         bad[option_offset] = 2
         with self.assertRaisesRegex(OnChainVerificationError, "Option"):
             parse_task_account(bytes(bad), owner=PROGRAM_ID, now_unix=NOW)
+        compute = parse_task_account(task_fixture(capabilities=1), owner=PROGRAM_ID, now_unix=NOW)
+        self.assertEqual(compute["required_capabilities"], ["compute"])
         with self.assertRaisesRegex(OnChainVerificationError, "capability"):
-            parse_task_account(task_fixture(capabilities=1), owner=PROGRAM_ID, now_unix=NOW)
-        with self.assertRaisesRegex(OnChainVerificationError, "reserved"):
+            parse_task_account(task_fixture(capabilities=2), owner=PROGRAM_ID, now_unix=NOW)
+        with self.assertRaisesRegex(OnChainVerificationError, "capability"):
             parse_task_account(task_fixture(capabilities=1 << 10), owner=PROGRAM_ID, now_unix=NOW)
 
     def test_derives_canonical_task_and_job_spec_pdas(self):
@@ -139,6 +141,20 @@ class OnChainTaskVerifierTests(unittest.TestCase):
         with self.assertRaisesRegex(OnChainVerificationError, "canonical Task PDA"):
             verify_task_on_chain(candidate(task_id="1" * 32), rpc_url="https://rpc.example.org",
                                  now_unix=NOW, rpc_call=rpc_for())
+
+    def test_accepts_only_matching_compute_capability_mask(self):
+        result = verify_task_on_chain(
+            candidate(required_capabilities="1"),
+            rpc_url="https://rpc.example.org", now_unix=NOW,
+            rpc_call=rpc_for(task_data=task_fixture(capabilities=1)),
+        )
+        self.assertEqual(result["required_capabilities"], ["compute"])
+        with self.assertRaisesRegex(OnChainVerificationError, "capabilities"):
+            verify_task_on_chain(
+                candidate(required_capabilities="0"),
+                rpc_url="https://rpc.example.org", now_unix=NOW,
+                rpc_call=rpc_for(task_data=task_fixture(capabilities=1)),
+            )
 
     def test_rejects_job_spec_hash_uri_or_creator_mismatch(self):
         cases = [
