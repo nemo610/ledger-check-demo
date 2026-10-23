@@ -19,30 +19,30 @@ def fixture(*, status=0, reward=1_000_000_000, deadline=NOW + 3600,
             reward_mint=None, capabilities=0, depends_on=None, discriminator=None,
             task_id=None):
     b = bytearray(discriminator if discriminator is not None else TASK_DISCRIMINATOR)
-    b.extend(task_id if task_id is not None else b"\\x00" * 32)
-    b.extend(b"\\x11" * 32)  # creator
+    b.extend(task_id if task_id is not None else b"\x00" * 32)
+    b.extend(b"\x11" * 32)  # creator
     b.extend(_u(capabilities, 8))
-    b.extend(b"\\x00" * 64)  # description
-    b.extend(b"\\x00" * 32)  # constraint hash
+    b.extend(b"\x00" * 64)  # description
+    b.extend(b"\x00" * 32)  # constraint hash
     b.extend(_u(reward, 8))
     b.extend(bytes([1, 0, status, 0]))
     b.extend(_u(NOW, 8, signed=True))
     b.extend(_u(deadline, 8, signed=True))
     b.extend(_u(0, 8, signed=True))
-    b.extend(b"\\x22" * 32)  # escrow
-    b.extend(b"\\x00" * 64)  # result
+    b.extend(b"\x22" * 32)  # escrow
+    b.extend(b"\x00" * 64)  # result
     b.extend(bytes([0, 1, 1]))
     b.extend(_u(500, 2))
     if depends_on is None:
-        b.extend(b"\\x00")
+        b.extend(b"\x00")
     else:
-        b.extend(b"\\x01" + depends_on)
-    b.extend(b"\\x00")  # dependency type
+        b.extend(b"\x01" + depends_on)
+    b.extend(b"\x00")  # dependency type
     b.extend(_u(0, 2))  # min reputation
     if reward_mint is None:
-        b.extend(b"\\x00")
+        b.extend(b"\x00")
     else:
-        b.extend(b"\\x01" + reward_mint)
+        b.extend(b"\x01" + reward_mint)
     return bytes(b)
 
 
@@ -55,19 +55,19 @@ class OnChainTaskVerifierTests(unittest.TestCase):
 
     def test_handles_variable_depends_on_option_layout(self):
         result = parse_task_account(
-            fixture(depends_on=b"\\x33" * 32), owner=PROGRAM_ID, now_unix=NOW
+            fixture(depends_on=b"\x33" * 32), owner=PROGRAM_ID, now_unix=NOW
         )
         self.assertEqual(result["reward_lamports"], 1_000_000_000)
 
     def test_rejects_spl_token_mint(self):
         with self.assertRaisesRegex(OnChainVerificationError, "SPL token"):
-            parse_task_account(fixture(reward_mint=b"\\x44" * 32), owner=PROGRAM_ID, now_unix=NOW)
+            parse_task_account(fixture(reward_mint=b"\x44" * 32), owner=PROGRAM_ID, now_unix=NOW)
 
     def test_rejects_wrong_owner_and_discriminator(self):
         with self.assertRaisesRegex(OnChainVerificationError, "owner"):
             parse_task_account(fixture(), owner="not-program", now_unix=NOW)
         with self.assertRaisesRegex(OnChainVerificationError, "discriminator"):
-            parse_task_account(fixture(discriminator=b"\\xff" * 8), owner=PROGRAM_ID, now_unix=NOW)
+            parse_task_account(fixture(discriminator=b"\xff" * 8), owner=PROGRAM_ID, now_unix=NOW)
 
     def test_rejects_non_open_expired_and_zero_reward(self):
         for data in (fixture(status=1), fixture(deadline=NOW), fixture(reward=0)):
