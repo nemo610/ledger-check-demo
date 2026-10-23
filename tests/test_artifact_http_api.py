@@ -68,6 +68,16 @@ class ArtifactHTTPAPITests(unittest.TestCase):
         self.assertEqual(headers["ETag"], f'"{created["sha256"]}"')
         self.assertEqual(hashlib.sha256(downloaded).hexdigest(), created["sha256"])
 
+        # The buyer can download with the short-lived signed URL, without the
+        # upload API's bearer token. A modified signature must be rejected.
+        self.assertIn("download_path", created)
+        status, _, signed_download = self.request("GET", created["download_path"])
+        self.assertEqual(status, 200)
+        self.assertEqual(hashlib.sha256(signed_download).hexdigest(), created["sha256"])
+        bad_url = created["download_path"].replace("sig=", "sig=0", 1)
+        status, _, _ = self.request("GET", bad_url)
+        self.assertEqual(status, 401)
+
     def test_download_and_delete_require_authentication(self):
         status, _, raw = self.request("POST", "/v1/artifacts", body=report_bytes(), token=TOKEN)
         self.assertEqual(status, 201)
