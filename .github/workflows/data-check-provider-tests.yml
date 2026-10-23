@@ -34,7 +34,7 @@ jobs:
                       raise RuntimeError("health response missing marketplace_webhook=true")
                   payload = {
                       "task": "CI smoke test; synthetic CSV only",
-                      "payload": {"filename": "ci.csv", "format": "csv", "content": "id,name\\n1,Ada\\n"}
+                      "payload": {"filename": "ci.csv", "format": "csv", "content": "id,name\n1,Ada\n"}
                   }
                   request = urllib.request.Request(
                       base + "/", data=json.dumps(payload).encode("utf-8"),
