@@ -60,12 +60,12 @@ def rpc_for(task_data=None, spec_data=None, *, task_owner=PROGRAM_ID, spec_owner
     spec_data = spec_data or job_spec_fixture()
     def rpc(url, payload, *, timeout):
         address = payload["params"][0]
-        if address == PDA:
-            raw, owner = task_data, task_owner
-        elif address == JOB_PDA:
+        if address == JOB_PDA:
             raw, owner = spec_data, spec_owner
         else:
-            return {"result": {"value": None}}
+            # Return the Task fixture even for a wrong requested address so the
+            # verifier must reject its non-canonical address, not just a missing account.
+            raw, owner = task_data, task_owner
         return {"result": {"value": {"owner": owner, "data": [base64.b64encode(raw).decode(), "base64"]}}}
     return rpc
 
