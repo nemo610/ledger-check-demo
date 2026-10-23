@@ -55,7 +55,7 @@ class TaskAdapterTests(unittest.TestCase):
         self.assertEqual(result["agent_id"], AGENT)
         self.assertEqual(result["listing_id"], LISTING)
 
-    def test_rejects_current_ambiguous_capability_bitmask(self):
+    def test_rejects_raw_bitmask_at_normalized_adapter_boundary(self):
         with self.assertRaisesRegex(JobRejected, "capabilities"):
             self.adapt(candidate(required_capabilities="0"))
 
