@@ -315,7 +315,10 @@ def verify_task_on_chain(candidate: dict, *, rpc_url: str, now_unix: int | None 
         raise OnChainVerificationError("Task account address does not match canonical Task PDA derivation")
     if account["description_bytes"][32:] != b"\x00" * 32:
         raise OnChainVerificationError("Task description is not a canonical 32-byte content hash")
-    expected_reward = Decimal(str(candidate.get("reward_gross_sol", ""))) * LAMPORTS_PER_SOL
+    try:
+        expected_reward = Decimal(str(candidate.get("reward_gross_sol", ""))) * LAMPORTS_PER_SOL
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise OnChainVerificationError("Candidate reward is malformed") from exc
     if not expected_reward.is_finite() or expected_reward != expected_reward.to_integral_value():
         raise OnChainVerificationError("Candidate reward cannot be represented exactly in lamports")
     if int(expected_reward) != account["reward_lamports"]:
