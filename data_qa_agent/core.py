@@ -7,9 +7,25 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+MAX_INPUT_BYTES = 10 * 1024 * 1024
+
 
 def _finding(code: str, severity: str, message: str, count: int = 1) -> dict[str, Any]:
     return {"code": code, "severity": severity, "message": message, "count": count}
+
+
+def _input_too_large(source: Path, size: int) -> dict[str, Any]:
+    return {
+        "file": source.name,
+        "format": source.suffix.lower().lstrip("."),
+        "status": "error",
+        "rows": 0,
+        "columns": 0,
+        "findings": [_finding(
+            "INPUT_TOO_LARGE", "high",
+            f"El archivo supera el límite de {MAX_INPUT_BYTES} bytes.",
+        )],
+    }
 
 
 def inspect_csv(path: str | Path) -> dict[str, Any]:
@@ -17,6 +33,10 @@ def inspect_csv(path: str | Path) -> dict[str, Any]:
     source = Path(path)
     findings: list[dict[str, Any]] = []
     try:
+        if not source.is_file():
+            raise OSError("not a regular file")
+        if source.stat().st_size > MAX_INPUT_BYTES:
+            return _input_too_large(source, source.stat().st_size)
         with source.open("r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.reader(handle, strict=True)
             try:
@@ -26,14 +46,16 @@ def inspect_csv(path: str | Path) -> dict[str, Any]:
                         "rows": 0, "columns": 0,
                         "findings": [_finding("EMPTY_FILE", "high", "El archivo está vacío.")]}
             normalized = [h.strip() for h in headers]
+            counts = Counter(normalized)
             blank_headers = sum(not h for h in normalized)
-            duplicates = [name for name, count in Counter(normalized).items() if name and count > 1]
+            duplicate_header_count = sum(count - 1 for name, count in counts.items() if name and count > 1)
             if blank_headers:
                 findings.append(_finding("BLANK_HEADERS", "high", "Hay columnas sin nombre.", blank_headers))
-            if duplicates:
+            if duplicate_header_count:
+                # Do not disclose customer-defined header names in generated reports.
                 findings.append(_finding("DUPLICATE_HEADERS", "high",
-                    "Hay nombres de columnas repetidos: " + ", ".join(sorted(duplicates)),
-                    sum(Counter(normalized)[name] - 1 for name in duplicates)))
+                    "Hay nombres de columnas repetidos; revisar el encabezado.",
+                    duplicate_header_count))
             width = len(headers)
             rows = 0
             blank_rows = 0
@@ -74,9 +96,13 @@ def inspect_json(path: str | Path) -> dict[str, Any]:
     """Check JSON syntax and report the root shape without exposing file contents."""
     source = Path(path)
     try:
+        if not source.is_file():
+            raise OSError("not a regular file")
+        if source.stat().st_size > MAX_INPUT_BYTES:
+            return _input_too_large(source, source.stat().st_size)
         with source.open("r", encoding="utf-8-sig") as handle:
             payload = json.load(handle)
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
         return {"file": source.name, "format": "json", "status": "error",
                 "findings": [_finding("INVALID_JSON", "high",
                     f"No se pudo leer JSON válido: {type(exc).__name__}.")]}
@@ -97,10 +123,20 @@ def inspect_json(path: str | Path) -> dict[str, Any]:
 
 
 def inspect_file(path: str | Path) -> dict[str, Any]:
-    """Route supported local files to a deterministic inspector."""
-    suffix = Path(path).suffix.lower()
+    """Route supported local files to a deterministic inspector with a hard size limit."""
+    source = Path(path)
+    suffix = source.suffix.lower()
+    if suffix not in {".csv", ".json"}:
+        raise ValueError("Formato no soportado; usá .csv o .json")
+    try:
+        if not source.is_file():
+            raise OSError("not a regular file")
+        if source.stat().st_size > MAX_INPUT_BYTES:
+            return _input_too_large(source, source.stat().st_size)
+    except OSError as exc:
+        return {"file": source.name, "format": suffix[1:], "status": "error",
+                "rows": 0, "columns": 0,
+                "findings": [_finding("READ_ERROR", "high", "No se pudo acceder al archivo de entrada.")]}
     if suffix == ".csv":
-        return inspect_csv(path)
-    if suffix == ".json":
-        return inspect_json(path)
-    raise ValueError("Formato no soportado; usá .csv o .json")
+        return inspect_csv(source)
+    return inspect_json(source)
