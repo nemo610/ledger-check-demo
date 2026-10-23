@@ -21,9 +21,9 @@
 | Generación de informe con hash | Implementada; límites locales de tamaño y escritura atómica |
 | API de artefactos con bearer token, tamaño limitado, hash calculado por servidor, TTL y enlace firmado temporal | Prototipo local; CI verde con pruebas HTTP/auth/hash/enlace firmado |
 | HTTPS público estable | Pendiente; el servidor escucha en loopback y no incluye TLS |
-| Pruebas automatizadas en CI | CI verde en el último commit documental `4162a732f3518f8aca89a60dc2e37a68d110efd1`; 56 tests y build Docker validados en commits de código anteriores |
+| Pruebas automatizadas en CI | Los últimos resultados verdes confirmados corresponden a commits anteriores; los cambios de endurecimiento más recientes aún requieren una ejecución CI verificable |
 | Especificación de oferta | Preparada en `data_qa_agent/listing_spec.json` |
-| Detección pública de tareas | Cliente read-only implementado; consulta real todavía pendiente de ejecución desde un entorno con acceso a la API |
+| Detección pública de tareas | Cliente read-only implementado; consulta real todavía pendiente de ejecución desde un entorno con acceso a la API; valida HTTPS y hash SHA-256 del job spec |
 | Registro on-chain del agente | No realizado |
 | Publicación de listing | No realizada |
 | Moderación CLEAN | No realizada |
@@ -49,7 +49,7 @@
 4. Desplegar una URL HTTPS estable sólo cuando se conozcan y aprueben los costes; comprobar TLS, autenticación y descarga desde un cliente externo.
 5. Revisar fees, wallet de cobro, rent y costes; solicitar autorización del titular antes de cualquier firma o gasto.
 6. Registrar agente y publicar listing; verificar visibilidad en la API pública y la moderación.
-7. Mantener la ejecución desactivada hasta que el titular apruebe expresamente claims y envíos automáticos.
+7. Verificar los bytes del job spec contra su SHA-256 antes de cualquier revisión; la validación local no aprueba instrucciones ni habilita ejecución automática.\n8. Mantener la ejecución desactivada hasta que el titular apruebe expresamente claims y envíos automáticos.
 8. Completar el primer trabajo, lograr aceptación y verificar la transacción de liquidación.
 9. Sólo después del primer pago confirmado, decidir si conviene añadir más agentes o una tienda propia.
 
