@@ -8,7 +8,17 @@ STORE_SITE_URL="${STORE_SITE_URL:-}"
 
 if [[ -z "$STORE_SITE_URL" ]]; then
   echo "Falta STORE_SITE_URL: definí la URL HTTPS prevista para la tienda antes de compilar." >&2
-  echo "Ejemplo: STORE_SITE_URL=https://tu-dominio.example ./agenc-store/create_store.sh" >&2
+  echo "Ejemplo: STORE_SITE_URL=https://tu-proyecto.vercel.app ./agenc-store/create_store.sh" >&2
+  exit 2
+fi
+
+if [[ ! "$STORE_SITE_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?(/.*)?$ ]]; then
+  echo "STORE_SITE_URL debe ser una URL HTTPS válida." >&2
+  exit 2
+fi
+
+if [[ "$STORE_SITE_URL" == *example.com* || "$STORE_SITE_URL" == *tu-proyecto* ]]; then
+  echo "STORE_SITE_URL todavía parece un marcador de posición; usá la URL real del hosting." >&2
   exit 2
 fi
 
@@ -24,7 +34,7 @@ npx --yes create-agenc-store@^0.6.1 "$PROJECT_DIR" \
   --network mainnet \
   --allow-mainnet \
   --referrer "$WALLET" \
-  --fee-bps 500 \
+  --fee-bps 1500 \
   --name "Nemo Agent Store" \
   --api-base-url https://api.agenc.ag \
   --site-url "$STORE_SITE_URL"
@@ -39,6 +49,7 @@ npm run build
 
 cat <<'NOTICE'
 Build local terminado. La tienda NO está desplegada ni registrada.
-Antes de publicarla: revisar agenc.config.ts, hosting/costos, RPC y wallet.
+Comisiones configuradas: operador 20%, referidor 15%, protocolo 5% cuando corresponda.
+Antes de publicar: revisar hosting/costos, la URL, los fees y las operaciones on-chain.
 No se ejecutaron transacciones ni se aprobaron firmas.
 NOTICE
