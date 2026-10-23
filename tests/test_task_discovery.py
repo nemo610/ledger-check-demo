@@ -47,6 +47,11 @@ class TaskDiscoveryTests(unittest.TestCase):
         self.assertIsNone(_rank_task(task(rewardLamports="0"), now_unix=NOW))
         self.assertIsNone(_rank_task(task(rewardLamports="1.5"), now_unix=NOW))
 
+    def test_requires_explicit_actionable_evidence(self):
+        self.assertIsNone(_rank_task(task(actionability=None), now_unix=NOW))
+        self.assertIsNone(_rank_task(task(actionability={}), now_unix=NOW))
+        self.assertIsNone(_rank_task(task(actionability={"actionable": False}), now_unix=NOW))
+
     def test_rejects_missing_https_spec_or_hash(self):
         self.assertIsNone(_rank_task(task(jobSpecUri="http://example.org/spec"), now_unix=NOW))
         self.assertIsNone(_rank_task(task(jobSpecHash=None), now_unix=NOW))
