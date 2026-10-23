@@ -2,9 +2,15 @@
 set -euo pipefail
 
 # Crear y compilar una tienda AgenC localmente. No despliega ni firma transacciones.
-WALLET="CG8BV7x2jWnFkfnV4WMkjLLi3aj6Q2Hu5M8t98MLA391"
+WALLET="${AGENC_WALLET:-}"
 PROJECT_DIR="${1:-agenc-store-app}"
 STORE_SITE_URL="${STORE_SITE_URL:-}"
+
+if [[ -z "$WALLET" || ! "$WALLET" =~ ^[1-9A-HJ-NP-Za-km-z]{32,44}$ ]]; then
+  echo "Falta AGENC_WALLET o no parece una dirección pública Solana válida." >&2
+  echo "Configurá solo la dirección pública; nunca uses la seed phrase ni la clave privada." >&2
+  exit 2
+fi
 
 if [[ -z "$STORE_SITE_URL" ]]; then
   echo "Falta STORE_SITE_URL: definí la URL HTTPS prevista para la tienda antes de compilar." >&2
@@ -17,7 +23,7 @@ if [[ ! "$STORE_SITE_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?(/.*)?$ ]]; then
   exit 2
 fi
 
-if [[ "$STORE_SITE_URL" == *example.com* || "$STORE_SITE_URL" == *tu-proyecto* ]]; then
+if [[ "$STORE_SITE_URL" == *example.com* || "$STORE_SITE_URL" == *tu-proyecto* || "$STORE_SITE_URL" == *example.test* ]]; then
   echo "STORE_SITE_URL todavía parece un marcador de posición; usá la URL real del hosting." >&2
   exit 2
 fi
@@ -43,6 +49,7 @@ cp agenc-store/agenc.config.ts "$PROJECT_DIR/agenc.config.ts"
 cd "$PROJECT_DIR"
 npm install
 export NEXT_PUBLIC_SITE_URL="$STORE_SITE_URL"
+export AGENC_WALLET="$WALLET"
 npm ls @tetsuo-ai/store-core @tetsuo-ai/marketplace-react @tetsuo-ai/marketplace-sdk
 npm run typecheck
 npm run build
