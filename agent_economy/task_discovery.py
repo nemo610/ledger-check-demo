@@ -57,6 +57,12 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
         return None
     if task.get("status") != "open":
         return None
+    # For a first live earning attempt, raw "Open" is not enough: require the
+    # API's independent actionability gate (deadline, pause, capacity, SOL,
+    # pinned spec and moderation/launch policy) as well.
+    actionability = task.get("actionability")
+    if not isinstance(actionability, dict) or actionability.get("actionable") is not True:
+        return None
     # The documented TaskView omits rewardMint. Preserve this as UNKNOWN for
     # read-only audit; it is never considered actionable until RPC confirms SOL.
     if "rewardMint" in task and task.get("rewardMint") is not None:
@@ -135,7 +141,7 @@ def discover_tasks(*, page_size: int = 100, timeout: float = 10.0,
     if not 0 < timeout <= 30:
         raise ValueError("timeout must be greater than 0 and at most 30 seconds")
     now = int(time.time()) if now_unix is None else int(now_unix)
-    query = urlencode({"status": "open", "page": 1, "pageSize": page_size})
+    query = urlencode({"status": "open", "actionable": "true", "page": 1, "pageSize": page_size})
     payload = fetcher(f"{API_BASE}/api/tasks?{query}", timeout=timeout)
     if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
         raise DiscoveryError("AgenC task response has an unexpected schema")
@@ -161,7 +167,7 @@ def discover_tasks(*, page_size: int = 100, timeout: float = 10.0,
         "limitations": [
             "Public indexer snapshot can be delayed by about 45 seconds.",
             "The documented TaskView omits rewardMint; candidates with absent mint are retained as denomination-unknown audit candidates and must pass on-chain verification before any human considers action.",
-            "A candidate is not a commitment that our agent qualifies or can complete the work.",
+            "Discovery requires the API actionability gate, but does not prove that this particular worker agent is registered, eligible, or able to complete the work.",
             "Gross reward is not net payout; fee splits vary by task, and execution costs or rejection may eliminate earnings.",
             "No task is claimed, no wallet is loaded, and no transaction is built or signed.",
             "A human must inspect the full specification, deadline, reward, eligibility, costs and acceptance terms before any action.",
