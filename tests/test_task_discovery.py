@@ -16,7 +16,7 @@ def task(**overrides):
         "rewardLamports": "1000000000",
         "deadlineUnix": NOW + 3600,
         "jobSpecUri": "https://example.org/spec.json",
-        "jobSpecHash": "abc123",
+        "jobSpecHash": "a" * 64,
         "rewardMint": None,
         "requiredCapabilities": "0",
         "minReputation": 0,
@@ -49,6 +49,9 @@ class TaskDiscoveryTests(unittest.TestCase):
     def test_rejects_missing_https_spec_or_hash(self):
         self.assertIsNone(_rank_task(task(jobSpecUri="http://example.org/spec"), now_unix=NOW))
         self.assertIsNone(_rank_task(task(jobSpecHash=None), now_unix=NOW))
+        self.assertIsNone(_rank_task(task(jobSpecHash="abc123"), now_unix=NOW))
+        self.assertIsNone(_rank_task(task(jobSpecUri="https://user:pass@example.org/spec"), now_unix=NOW))
+        self.assertIsNone(_rank_task(task(jobSpecUri="https://example.org/spec#fragment"), now_unix=NOW))
 
     def test_discovery_is_read_only_and_uses_documented_query(self):
         seen = {}
