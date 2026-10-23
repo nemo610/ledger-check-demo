@@ -57,7 +57,7 @@ class SyntheticAgentEndToEndTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source_path = root / "synthetic.csv"
-            source_bytes = b"id,value\\n1,alpha\\n2,beta\\n"
+            source_bytes = b"id,value\n1,alpha\n2,beta\n"
             source_path.write_bytes(source_bytes)
 
             receipt = run_dry_run(
@@ -88,7 +88,7 @@ class SyntheticAgentEndToEndTests(unittest.TestCase):
                 "report": qa_report,
                 "simulation": receipt,
             }
-            raw_artifact = (json.dumps(artifact_payload, sort_keys=True) + "\\n").encode("utf-8")
+            raw_artifact = (json.dumps(artifact_payload, sort_keys=True) + "\n").encode("utf-8")
             store = ArtifactStore(root / "artifacts")
             created = store.put(raw_artifact)
             downloaded, downloaded_hash = store.get(created["artifact_id"])
