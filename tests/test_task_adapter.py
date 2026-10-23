@@ -79,6 +79,20 @@ class TaskAdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(JobRejected, "positive integer"):
             self.adapt(p=provider_record(reward_lamports=True))
 
+    def test_rejects_non_hex_hash_and_invalid_configured_ids(self):
+        with self.assertRaisesRegex(JobRejected, "SHA-256 hex"):
+            self.adapt(p=provider_record(spec_sha256="g" * 64))
+        with self.assertRaisesRegex(JobRejected, "non-empty strings"):
+            normalize_candidate_for_dry_run(
+                candidate(), provider_record(),
+                expected_agent_id=123, expected_listing_id=LISTING,
+            )
+        with self.assertRaisesRegex(JobRejected, "non-empty strings"):
+            normalize_candidate_for_dry_run(
+                candidate(), provider_record(),
+                expected_agent_id=AGENT, expected_listing_id=" ",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
