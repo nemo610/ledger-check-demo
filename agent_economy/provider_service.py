@@ -11,7 +11,7 @@ MAX_REQUESTS_PER_MINUTE = 30
 _requests: dict[str, deque[float]] = defaultdict(deque)
 
 def _response(start_response, status: str, payload: dict[str, Any]):
-    body = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\\n").encode("utf-8")
+    body = (json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
     start_response(status, [("Content-Type", "application/json; charset=utf-8"), ("Content-Length", str(len(body))), ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff")])
     return [body]
 
