@@ -19,6 +19,19 @@ class JobSpecError(ValueError):
     """A job specification is too large, malformed, or fails its pinned hash."""
 
 
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise JobSpecError("Job spec JSON contains duplicate object keys")
+        result[key] = value
+    return result
+
+
+def _reject_constant(value: str) -> None:
+    raise JobSpecError(f"Job spec JSON contains non-standard constant {value}")
+
+
 def verify_job_spec(
     raw: bytes,
     expected_sha256: str,
@@ -46,7 +59,11 @@ def verify_job_spec(
     if not hmac.compare_digest(actual, expected_sha256.lower()):
         raise JobSpecError("Job spec SHA-256 does not match the pinned hash")
     try:
-        payload = json.loads(raw.decode("utf-8"))
+        payload = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_constant,
+        )
     except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
         raise JobSpecError("Job spec must be valid UTF-8 JSON") from exc
     if not isinstance(payload, dict):
