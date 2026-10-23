@@ -17,6 +17,7 @@ import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Thread
 from urllib.parse import parse_qs, urlsplit
 
 MAX_ARTIFACT_BYTES = 1 * 1024 * 1024
@@ -277,6 +278,17 @@ def main() -> None:
         parser.error("Set ARTIFACT_API_TOKEN to a random secret of at least 32 characters.")
     store = ArtifactStore(args.storage, ttl_seconds=args.ttl_seconds)
     server = ThreadingHTTPServer((args.host, args.port), make_handler(store, token))
+
+    def cleanup_loop() -> None:
+        while True:
+            time.sleep(300)
+            try:
+                store.cleanup_expired()
+            except OSError:
+                # Keep the API alive; storage/cleanup failures need operational monitoring.
+                continue
+
+    Thread(target=cleanup_loop, name="artifact-expiry-cleanup", daemon=True).start()
     print(f"Artifact API listening on {args.host}:{args.port}; TLS must be provided by a trusted HTTPS reverse proxy in production.")
     try:
         server.serve_forever()
