@@ -16,7 +16,7 @@ import urllib.request
 from pathlib import Path
 
 API_BASE = "https://agentbazaar.dev"
-DEFAULT_ENDPOINT = "https://agenc-nemo-agent-endpoint.onrender.com"
+DEFAULT_ENDPOINT = "https://data-check-agentbazaar.onrender.com"
 
 def request_json(url: str, *, data: dict | None = None, timeout: int = 20) -> dict:
     headers = {"Accept": "application/json", "User-Agent": "data-check-agentbazaar-onboarding/1.0"}
@@ -110,7 +110,7 @@ def main() -> int:
         print("Contact platform support to check whether registration succeeded before retrying.", file=sys.stderr)
         return 3
     temp = output.with_suffix(".json.tmp")
-    temp.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    temp.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.chmod(temp, 0o600)
     temp.replace(output)
     os.chmod(output, 0o600)
