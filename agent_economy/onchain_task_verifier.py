@@ -98,8 +98,6 @@ def parse_task_account(data: bytes, *, owner: str, expected_task_id: str | None 
     min_reputation = reader.uint(2)
     reward_mint = reader.option_pubkey()
 
-    if expected_task_id is not None and _b58decode(expected_task_id) != task_id_bytes:
-        raise OnChainVerificationError("Task PDA does not match the account's embedded task_id")
     if status != 0:
         raise OnChainVerificationError("On-chain task status is not Open")
     if reward_lamports <= 0:
@@ -117,6 +115,7 @@ def parse_task_account(data: bytes, *, owner: str, expected_task_id: str | None 
 
     return {
         "task_id_bytes_hex": task_id_bytes.hex(),
+        "canonical_pda_derivation_verified": False,
         "status": "open",
         "reward_lamports": reward_lamports,
         "deadline_unix": deadline,
@@ -130,6 +129,7 @@ def parse_task_account(data: bytes, *, owner: str, expected_task_id: str | None 
         "account_discriminator_verified": True,
         "account_layout_verified_through_reward_mint": True,
         "job_spec_hash_verified_on_chain": False,
+        "task_id_pda_derivation_verified": False,
         "note": "On-chain Task fields verified read-only; jobSpecHash/URI are not proven by this account decoder.",
     }
 
