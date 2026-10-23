@@ -39,6 +39,14 @@ class TaskDiscoveryTests(unittest.TestCase):
     def test_rejects_unverified_task(self):
         self.assertIsNone(_rank_task(task(verified=False), now_unix=NOW))
 
+    def test_only_official_zero_capability_bitmask_maps_to_empty_list(self):
+        zero = _rank_task(task(requiredCapabilities="0"), now_unix=NOW)
+        self.assertEqual(zero["required_capabilities"], [])
+        # Nonzero bitmasks are kept opaque; the adapter must reject them until
+        # each bit has a verified, implemented mapping.
+        nonzero = _rank_task(task(requiredCapabilities="1"), now_unix=NOW)
+        self.assertEqual(nonzero["required_capabilities"], "1")
+
     def test_rejects_missing_task_identity(self):
         self.assertIsNone(_rank_task(task(pda=""), now_unix=NOW))
         self.assertIsNone(_rank_task(task(pda=None), now_unix=NOW))
