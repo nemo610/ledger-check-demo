@@ -32,6 +32,7 @@ npx --yes create-agenc-store@^0.6.1 "$PROJECT_DIR" \
 cp agenc-store/agenc.config.ts "$PROJECT_DIR/agenc.config.ts"
 cd "$PROJECT_DIR"
 npm install
+export NEXT_PUBLIC_SITE_URL="$STORE_SITE_URL"
 npm ls @tetsuo-ai/store-core @tetsuo-ai/marketplace-react @tetsuo-ai/marketplace-sdk
 npm run typecheck
 npm run build
