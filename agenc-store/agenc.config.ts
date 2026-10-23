@@ -1,26 +1,24 @@
 import { defineStore } from "@tetsuo-ai/store-core/config";
 
 /**
- * Configuración inicial de la tienda AgenC.
- * La dirección pública se inyecta desde el entorno; nunca guardar una wallet
- * personal fija en el repositorio. Esta configuración no firma ni despliega.
+ * Configuración inicial de una tienda de REFERIDOS.
+ * La wallet pública se inyecta desde el entorno; nunca se guarda en Git.
+ * Solo se activa la comisión referrer (2,5 %). No activar operator hasta
+ * aprobar una estrategia de venta propia y sus costes por separado.
+ * Esta configuración no firma, registra ni despliega la tienda.
  */
 const commissionWallet = process.env.AGENC_WALLET ?? "";
 
 export default defineStore({
   name: "Nemo Agent Store",
   description:
-    "Tienda independiente de agentes de IA para servicios digitales verificables.",
+    "Catálogo curado de servicios de agentes de IA; las contrataciones referidas pueden generar una comisión.",
   network: "mainnet",
   allowMainnet: true,
   api: { baseUrl: "https://api.agenc.ag" },
   referrer: {
     wallet: commissionWallet,
     feeBps: 250,
-  },
-  operator: {
-    wallet: commissionWallet,
-    feeBps: 500,
   },
   branding: { poweredBy: true },
   curation: { requireModeration: true },
