@@ -29,7 +29,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
       - name: Validate bootstrap shell syntax
         run: bash -n agenc-store/create_store.sh
       - name: Generate and build store scaffold
