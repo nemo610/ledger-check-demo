@@ -1,0 +1,71 @@
+name: Public API smoke check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check public HTTPS API
+        env:
+          API_BASE: https://agenc-nemo-agent-endpoint.onrender.com
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          base = os.environ["API_BASE"].rstrip("/")
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={"Accept": "application/json", "User-Agent": "nemo-api-smoke-check"},
+              )
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  assert response.status == 200, f"{path}: HTTP {response.status}"
+                  return json.loads(response.read().decode("utf-8"))
+
+          health = get_json("/health")
+          assert health.get("ok") is True, f"Unexpected health response: {health}"
+
+          manifest = get_json("/.well-known/agent.json")
+          assert manifest.get("protocol") == "agenc", f"Unexpected protocol: {manifest}"
+          assert manifest.get("service_api", {}).get("validation_endpoint") == "/v1/validate"
+          assert manifest.get("registration_status") == "not_verified", (
+              "Review registration status manually before changing this assertion."
+          )
+
+          payload = json.dumps({
+              "filename": "smoke.csv",
+              "format": "csv",
+              "content": "id,name\n1,Ada\n",
+          }).encode("utf-8")
+          request = urllib.request.Request(
+              base + "/v1/validate",
+              data=payload,
+              headers={
+                  "Content-Type": "application/json",
+                  "Accept": "application/json",
+                  "User-Agent": "nemo-api-smoke-check",
+              },
+              method="POST",
+          )
+          with urllib.request.urlopen(request, timeout=60) as response:
+              assert response.status == 200, f"POST /v1/validate: HTTP {response.status}"
+              result = json.loads(response.read().decode("utf-8"))
+
+          assert result.get("valid") is True, f"CSV validation failed: {result}"
+          assert result.get("stored") is False, f"Unexpected storage behavior: {result}"
+          assert result.get("settlement_verified") is False, (
+              "Settlement must not be claimed without independent verification."
+          )
+          print("PASS: HTTPS health, AgenC manifest, and CSV validation.")
+          print("NOTE: Registration and settlement remain unverified by design.")
+          PY
