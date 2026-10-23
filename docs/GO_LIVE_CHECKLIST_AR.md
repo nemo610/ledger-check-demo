@@ -1,0 +1,68 @@
+# Plan de salida a mercado — Data QA en AgenC
+
+**Estado:** preparado para revisión; todavía NO publicado, contratado ni cobrado.  
+**Rama:** `agent-to-agent-monetization-v1`
+
+## Servicio inicial
+
+- **Nombre corto:** CSV/JSON Data Quality Check (menos de 32 bytes para el nombre on-chain).
+- **Precio inicial propuesto:** 0.01 SOL por archivo pequeño. Es una hipótesis de lanzamiento, no un precio validado por ventas.
+- **Entrega:** informe JSON descargable con estado, métricas disponibles, hallazgos codificados, severidad y limitaciones.
+- **Alcance:** un archivo CSV o JSON no sensible por contratación; validaciones estructurales deterministas. No incluye conciliación contable, validación fiscal, interpretación de negocio ni corrección automática.
+- **Privacidad:** no aceptar datos personales, bancarios, médicos, credenciales ni información confidencial. Usar datos sintéticos hasta que exista un proceso de protección y borrado acordado.
+- **Criterio de aceptación:** el archivo de salida se puede descargar, es JSON válido, coincide con el hash SHA-256 declarado y enumera los checks ejecutados y las limitaciones.
+- **Límite de honestidad:** no prometer exactitud fiscal ni ausencia de errores no detectados.
+
+## Estado real
+
+| Componente | Estado |
+| --- | --- |
+| Worker local CSV/JSON | Implementado en el repositorio; no está conectado a un ciclo real de contratación |
+| Generación de informe con hash | Implementada; límites locales de tamaño y escritura atómica |
+| API de artefactos con bearer token, tamaño limitado, hash calculado por servidor, TTL y enlace firmado temporal | Prototipo local; incluye pruebas unitarias y HTTP en CI |
+| CI del commit actual | Verificado: `Commission Bot CI` y `AgenC store build preflight` finalizaron con éxito en el commit auditado. El preflight de la tienda valida pasos de preparación, no publica ni despliega la oferta |
+| HTTPS público estable | Pendiente; el servidor escucha en loopback y no incluye TLS |
+| Especificación de oferta | Preparada en `data_qa_agent/listing_spec.json` |
+| Detección y auditoría pública de tareas | `task_discovery.py` conserva tareas con mint omitido como candidatas de auditoría con denominación desconocida, marcadas siempre `actionable=false`; rechaza mints explícitos no nulos. `live_task_audit.py` integra discovery + RPC read-only + comparación de reward/deadline + descarga HTTPS limitada y comprobación SHA-256 del spec. CLI: `python -m agent_economy.live_task_audit --rpc-url "$SOLANA_RPC_URL"`. Si no hay RPC, deja los candidatos sin verificar. Incluso con cuenta/spec coincidentes, el resultado sigue no accionable porque la derivación canónica PDA y el vínculo on-chain del hash/spec aún no están probados. No habilitar contratación live hasta cerrar estas brechas y revisar una tarea real |
+| Adaptador fail-closed discovery → worker simulado | Implementado con tests sintéticos; exige registro normalizado independiente, atribución explícita, coincidencia de recompensa/deadline/hash y capacidades como lista. Hash reforzado a SHA-256 hexadecimal y IDs configurados como strings no vacíos. Schema oficial verificado: `requiredCapabilities` es un bitmask u64 decimal y `"0"` significa sin requisito, por lo que se normaliza a `[]`. Los bitmasks no nulos siguen opacos y se rechazan hasta mapear cada bit con el protocolo oficial |
+| Prueba end-to-end sintética | Añadida: registro sintético → adaptador → worker dry-run → análisis CSV local → artefacto JSON → verificación SHA-256 de descarga desde el store local. No consulta AgenC ni usa red, wallets, claims, firmas, pagos ni subida externa; CI debe confirmar el resultado en el commit final |
+| Registro on-chain del agente | No realizado |
+| Publicación de listing | No realizada |
+| Moderación CLEAN | No realizada |
+| Claims, firmas y envíos de entrega | Deshabilitados/no implementados como proceso operativo |
+| Contrato, liquidación e ingresos | Ninguno demostrado |
+
+## Bloqueantes para publicar y cobrar
+
+1. **Aprobación explícita de presupuesto:** el registro en mainnet requiere una participación de referencia de 0.01 SOL por agente; también hay rent, comisiones de red y posible coste de hosting/RPC. Leer el valor vigente de `ProtocolConfig.minAgentStake` antes de operar. No financiar ni firmar hasta que el titular lo apruebe.
+2. **Billeteras y cobros:** la dirección pública de Phantom indicada por el titular es un destino potencial de ganancias, no una clave de firma ni prueba de registro en AgenC. Para el rol de operador/referidor debe quedar atribuida en la listing/contratación; para cobrar como worker, la wallet del agente recibe la liquidación. Mantener la wallet principal Phantom separada de una hot wallet de bajo saldo que firme tareas; transferir a Phantom manualmente tras verificar los recibos. No guardar claves privadas en GitHub/Jules/chat ni automatizar barridos de fondos en la primera versión.
+3. **Oferta alojada:** publicar el JSON canónico en una URL HTTPS estable y comprobar que el contenido y su hash coinciden exactamente.
+4. **Registro y listing:** registrar el agente y publicar el listing usando la versión vigente documentada del SDK; revalidar la matriz oficial antes de instalar.
+5. **Moderación:** solicitar la atestación y confirmar que el resultado sea `CLEAN`; no asumir que una oferta publicada ya es contratable.
+6. **Entrega segura:** validar el prototipo local, desplegarlo detrás de HTTPS, asegurar autenticación, límites, vencimiento y borrado, y probar descarga real desde un cliente externo. No exponer directamente el servidor HTTP.
+7. **Ciclo de contratación:** implementar y probar en modo simulado un worker que compruebe atribución del trabajo, hash íntegro del job spec, deadline, reward, capacidades, límites de archivo, instrucciones no confiables, idempotencia y aceptación. El worker no debe reclamar ni firmar.
+8. **Prueba end-to-end:** la ruta sintética local adaptador → worker → QA → artefacto con hash está cubierta por test automatizado. Sigue pendiente una prueba con proveedor real, descarga externa HTTPS y ciclo de aceptación; los claims y las transacciones deben seguir desactivados por defecto.
+9. **Conciliación:** contar ingreso sólo cuando exista recibo de liquidación verificable on-chain; el snapshot de una API no es suficiente por sí solo.
+
+## Pasos operativos, en orden
+
+1. Mantener CI verde y ejecutar las pruebas localmente en un entorno controlado; guardar evidencia reproducible.
+2. Ejecutar `python -m agent_economy.live_task_audit --out output/agenc_live_task_audit.json` para snapshot read-only. Para verificación RPC, proporcionar `SOLANA_RPC_URL` desde el entorno o `--rpc-url`; no guardar endpoints con tokens en logs ni en GitHub. Inspeccionar los motivos de rechazo y la cantidad de candidatas. Esta herramienta nunca reclama tareas ni habilita ejecución.
+3. Probar el API de artefactos, incluida autorización correcta/incorrecta, tamaño límite, hash, vencimiento, borrado y fallas de almacenamiento.
+4. Completar el worker aislado y pruebas de especificación maliciosa, hash incorrecto, tarea no atribuida, duplicados e idempotencia.
+5. Ejecutar el descubridor/auditor read-only y guardar el snapshot; revisar cada especificación, deadline, reward, requisitos y costes.
+6. Desplegar una URL HTTPS estable sólo cuando se conozcan y aprueben los costes; comprobar TLS, autenticación y descarga desde un cliente externo.
+7. Revisar fees, billetera de cobro, rent y costes; solicitar autorización del titular antes de cualquier firma o gasto.
+8. Registrar agente y publicar listing sólo después de la autorización explícita; verificar visibilidad en la API pública y moderación `CLEAN`.
+9. Mantener claims, firmas y envíos desactivados hasta aprobación expresa del titular.
+10. Completar el primer trabajo autorizado, lograr aceptación y verificar la transacción de liquidación.
+11. Sólo después del primer pago confirmado, decidir si conviene añadir más agentes o una tienda propia.
+
+## Fuentes oficiales a revalidar el día del lanzamiento
+
+- [AgenC: vender servicios como proveedor](https://agenc.ag/docs/quickstart-providers)
+- [AgenC: brief canónico para vender un servicio](https://agenc.ag/docs/agent-briefs/sell-a-service)
+- [AgenC: API REST](https://agenc.ag/docs/api)
+- [AgenC: mainnet quickstart](https://agenc.ag/docs/quickstart-mainnet)
+
+**Regla de salida:** no anunciar que estamos “en vivo” hasta que el listing sea visible, la moderación sea CLEAN y la ruta de entrega haya sido probada. No anunciar ingresos hasta verificar un recibo de liquidación.

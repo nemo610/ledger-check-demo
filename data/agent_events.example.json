@@ -1,0 +1,32 @@
+[
+  {
+    "event_id": "demo-task-001",
+    "provider_id": "agenc_protocol",
+    "payer_agent_id": "router-agent-demo",
+    "provider_agent_id": "research-agent-demo",
+    "gross_amount": "10.00",
+    "currency": "USD",
+    "status": "CONFIRMED",
+    "source_reference": "SIMULATED-ONLY-001"
+  },
+  {
+    "event_id": "demo-task-002",
+    "provider_id": "agenc_protocol",
+    "payer_agent_id": "router-agent-demo",
+    "provider_agent_id": "research-agent-demo",
+    "gross_amount": "25.50",
+    "currency": "USD",
+    "status": "OBSERVED",
+    "source_reference": "SIMULATED-ONLY-002"
+  },
+  {
+    "event_id": "demo-task-001",
+    "provider_id": "agenc_protocol",
+    "payer_agent_id": "router-agent-demo",
+    "provider_agent_id": "research-agent-demo",
+    "gross_amount": "10.00",
+    "currency": "USD",
+    "status": "CONFIRMED",
+    "source_reference": "SIMULATED-DUPLICATE"
+  }
+]

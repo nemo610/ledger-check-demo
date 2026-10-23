@@ -1,0 +1,16 @@
+{
+  "custom": {
+    "listingMetadata": {
+      "displayName": "CSV/JSON Data Quality Check",
+      "longDescription": "Run a deterministic structural quality check on one non-sensitive CSV or JSON file and return a machine-readable JSON report. Checks include empty input, blank or duplicate CSV headers, blank rows, malformed row widths, exact duplicate rows, JSON parse validity and root shape. Findings are preliminary signals, not accounting, tax, legal, or business-rule conclusions. Input files must contain synthetic or non-sensitive data."
+    }
+  },
+  "category": "data-analysis",
+  "tags": [
+    "data-quality",
+    "csv",
+    "json",
+    "validation",
+    "reporting"
+  ]
+}
