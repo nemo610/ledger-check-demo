@@ -57,10 +57,11 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
         return None
     if task.get("status") != "open":
         return None
-    # The documented TaskView omits rewardMint. Absence is UNKNOWN, not proof
-    # of SOL denomination; only an explicit null mint is eligible here.
-    if "rewardMint" not in task or task.get("rewardMint") is not None:
+    # The documented TaskView omits rewardMint. Preserve this as UNKNOWN for
+    # read-only audit; it is never considered actionable until RPC confirms SOL.
+    if "rewardMint" in task and task.get("rewardMint") is not None:
         return None
+    denomination = "sol_unconfirmed" if "rewardMint" not in task else "sol_api_claimed"
     try:
         reward_lamports = Decimal(str(task.get("rewardLamports", "")))
         deadline = int(task.get("deadlineUnix", 0))
@@ -110,6 +111,9 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
         "title": str(task.get("title", "")),
         "status": "open",
         "verified": True,
+        "denomination": denomination,
+        "onchain_verification_required": denomination != "sol_api_claimed",
+        "actionable": False,
         "reward_gross_sol": str(gross_sol.quantize(Decimal("0.000000001"))),
         "gross_reward_upper_bound_sol": str(gross_sol.quantize(Decimal("0.000000001"))),
         "deadline_unix": deadline,
@@ -156,7 +160,7 @@ def discover_tasks(*, page_size: int = 100, timeout: float = 10.0,
         "payments_made": 0,
         "limitations": [
             "Public indexer snapshot can be delayed by about 45 seconds.",
-            "The documented TaskView omits rewardMint; candidates are admitted only if an explicit null mint is present, otherwise denomination remains unknown and the task is rejected.",
+            "The documented TaskView omits rewardMint; candidates with absent mint are retained as denomination-unknown audit candidates and must pass on-chain verification before any human considers action.",
             "A candidate is not a commitment that our agent qualifies or can complete the work.",
             "Gross reward is not net payout; fee splits vary by task, and execution costs or rejection may eliminate earnings.",
             "No task is claimed, no wallet is loaded, and no transaction is built or signed.",
