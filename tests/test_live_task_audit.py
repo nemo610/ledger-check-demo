@@ -41,8 +41,8 @@ class LiveTaskAuditTests(unittest.TestCase):
             "read_only": True,
             "reward_lamports": 100_000_000,
             "deadline_unix": NOW + 600,
-            "canonical_pda_derivation_verified": False,
-            "job_spec_hash_verified_on_chain": False,
+            "canonical_pda_derivation_verified": True,
+            "job_spec_hash_verified_on_chain": True,
         }
         with patch("agent_economy.live_task_audit.verify_task_on_chain", return_value=account):
             result = audit_snapshot(
@@ -50,9 +50,10 @@ class LiveTaskAuditTests(unittest.TestCase):
                 spec_fetcher=lambda uri: SPEC,
             )
         item = result["audited_candidates"][0]
-        self.assertEqual(item["status"], "partial_verified_not_actionable")
+        self.assertEqual(item["status"], "verified_not_actionable")
         self.assertTrue(item["spec_sha256_matches"])
-        self.assertFalse(item["canonical_pda_verified"])
+        self.assertTrue(item["canonical_pda_verified"])
+        self.assertTrue(item["job_spec_hash_verified_on_chain"])
         self.assertFalse(item["actionable"])
         self.assertEqual(item["transactions_signed"], 0)
 
