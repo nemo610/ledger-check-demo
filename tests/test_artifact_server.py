@@ -1,8 +1,10 @@
 import hashlib
+import os
 import json
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from data_qa_agent.artifact_server import ArtifactStore, ArtifactStoreError
@@ -26,6 +28,28 @@ class ArtifactStoreTests(unittest.TestCase):
             self.assertEqual(created["sha256"], digest)
             self.assertEqual(json.loads(raw)["schema_version"], "1.0")
             self.assertTrue(created["path"].startswith("/v1/artifacts/"))
+
+    def test_failed_expiry_metadata_replace_leaves_no_partial_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = ArtifactStore(tmp)
+            real_replace = os.replace
+            calls = 0
+
+            def fail_second_replace(source, destination):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise OSError("simulated metadata replace failure")
+                return real_replace(source, destination)
+
+            with patch(
+                "data_qa_agent.artifact_server.os.replace",
+                side_effect=fail_second_replace,
+            ):
+                with self.assertRaisesRegex(OSError, "metadata replace"):
+                    store.put(valid_report())
+
+            self.assertEqual(list(Path(tmp).iterdir()), [])
 
     def test_rejects_invalid_report_schema(self):
         with tempfile.TemporaryDirectory() as tmp:
