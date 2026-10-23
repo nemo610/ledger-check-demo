@@ -1,11 +1,19 @@
-name: AgenC Read-only Task Scan
+name: AgenC Read-only Readiness and Task Scan
 
 on:
   push:
-    branches: [agent-to-agent-monetization-v1]
+    branches: [main]
     paths:
       - 'agent_economy/**'
       - 'tests/**'
+      - 'docs/GO_LIVE_CHECKLIST_AR.md'
+      - '.github/workflows/agenc-readonly-task-scan.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'agent_economy/**'
+      - 'tests/**'
+      - 'docs/GO_LIVE_CHECKLIST_AR.md'
       - '.github/workflows/agenc-readonly-task-scan.yml'
   workflow_dispatch:
   schedule:
@@ -21,27 +29,34 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
-      - name: Checkout working branch
+      - name: Checkout the exact triggering revision
         uses: actions/checkout@v4
-        with:
-          ref: agent-to-agent-monetization-v1
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
-      - name: Discover current actionable candidates
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Check agent registration, listings and storefront (read-only)
+        env:
+          # Public Solana address only; no signing credential is used.
+          AGENC_WALLET: ${{ vars.AGENC_WALLET || 'CG8BV7x2jWnFkfnV4WMkjLLi3aj6Q2Hu5M8t98MLA391' }}
+        run: python -m agent_economy.agenc_readiness --out output/agenc_readiness.json
+
+      - name: Discover current actionable task candidates
         run: python -m agent_economy.task_discovery --page-size 100 --out output/agenc_task_candidates.json
 
       - name: Verify candidate accounts and pinned specs (read-only)
         env:
           SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
-        run: python -m agent_economy.live_task_audit --page-size 100 --out output/agenc_live_task_audit.json
+        run: python -m agent_economy.live_task_audit --page-size 100 --rpc-url "$SOLANA_RPC_URL" --out output/agenc_live_task_audit.json
 
-      - name: Upload scan reports
+      - name: Upload read-only reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
