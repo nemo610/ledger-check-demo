@@ -40,7 +40,7 @@ npx --yes create-agenc-store@^0.6.1 "$PROJECT_DIR" \
   --network mainnet \
   --allow-mainnet \
   --referrer "$WALLET" \
-  --fee-bps 1500 \
+  --fee-bps 250 \
   --name "Nemo Agent Store" \
   --api-base-url https://api.agenc.ag \
   --site-url "$STORE_SITE_URL"
@@ -56,7 +56,7 @@ npm run build
 
 cat <<'NOTICE'
 Build local terminado. La tienda NO está desplegada ni registrada.
-Comisiones configuradas: operador 20%, referidor 15%, protocolo 5% cuando corresponda.
+Comisiones propuestas: operador 5%, referidor 2.5%, protocolo 5% cuando corresponda; la billetera recibe hasta 7.5% en hires que incluyan ambos legs, o 2.5% si sólo aplica el referrer leg. Ingresos no garantizados.
 Antes de publicar: revisar hosting/costos, la URL, los fees y las operaciones on-chain.
 No se ejecutaron transacciones ni se aprobaron firmas.
 NOTICE
