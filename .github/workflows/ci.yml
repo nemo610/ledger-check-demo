@@ -21,3 +21,25 @@ jobs:
         run: python -m agent_economy.cli --help
       - name: Build deployment container
         run: docker build -t agenc-readonly-monitor:test .
+      - name: Read-only live AgenC task scan
+        continue-on-error: true
+        env:
+          SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
+        run: |
+          mkdir -p output
+          set +e
+          python -m agent_economy.task_discovery --page-size 100 --out output/agenc_task_candidates.json
+          discovery_rc=$?
+          python -m agent_economy.live_task_audit --page-size 100 --rpc-url "$SOLANA_RPC_URL" --out output/agenc_live_task_audit.json
+          audit_rc=$?
+          printf '{"discovery_exit_code":%s,"audit_exit_code":%s,"read_only":true,"transactions_signed":0,"claims_made":0,"payments_made":0}\n' "$discovery_rc" "$audit_rc" > output/agenc_scan_status.json
+          echo "AgenC scan exit codes: discovery=$discovery_rc audit=$audit_rc"
+          exit 0
+      - name: Upload read-only scan evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agenc-readonly-scan-${{ github.run_id }}
+          path: output/*.json
+          if-no-files-found: warn
+          retention-days: 14
