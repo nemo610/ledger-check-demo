@@ -29,12 +29,12 @@ def task(**overrides):
 
 
 class TaskDiscoveryTests(unittest.TestCase):
-    def test_ranks_verified_open_sol_task_and_labels_upper_bound(self):
+    def test_ranks_verified_open_sol_task_and_does_not_assume_fee_split(self):
         result = _rank_task(task(), now_unix=NOW)
         self.assertIsNotNone(result)
         self.assertEqual(result["reward_gross_sol"], "1.000000000")
-        self.assertEqual(result["worker_payout_upper_bound_sol"], "0.950000000")
-        self.assertIn("upper bound", result["note"].lower())
+        self.assertEqual(result["gross_reward_upper_bound_sol"], "1.000000000")
+        self.assertIn("not a net payout estimate", result["note"].lower())
 
     def test_rejects_unverified_task(self):
         self.assertIsNone(_rank_task(task(verified=False), now_unix=NOW))
