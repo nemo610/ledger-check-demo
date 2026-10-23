@@ -99,8 +99,18 @@ class SimulatedWorkerTests(unittest.TestCase):
         with self.assertRaisesRegex(JobRejected, "limit"):
             self.validate(spec=b"x" * (256 * 1024 + 1))
         invalid = b"not-json"
-        with self.assertRaisesRegex(JobRejected, "UTF-8 JSON"):
+        with self.assertRaisesRegex(JobRejected, "valid UTF-8 JSON"):
             self.validate(task=envelope(invalid), spec=invalid)
+
+    def test_duplicate_json_keys_and_nonstandard_numbers_rejected(self):
+        # Hash is deliberately correct: rejection must come from strict parsing.
+        for spec in (
+            b'{"operation":"data_qa.inspect","operation":"shell.exec"}',
+            b'{"operation":"data_qa.inspect","value":NaN}',
+            b'{"operation":"data_qa.inspect","value":Infinity}',
+        ):
+            with self.subTest(spec=spec), self.assertRaises(JobRejected):
+                self.validate(task=envelope(spec), spec=spec)
 
     def test_duplicate_task_id_rejected_without_second_receipt(self):
         seen = set()
