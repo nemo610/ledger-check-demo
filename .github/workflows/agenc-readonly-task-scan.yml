@@ -1,0 +1,45 @@
+name: AgenC Read-only Task Scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agenc-readonly-task-scan
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent-to-agent-monetization-v1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Discover current actionable candidates
+        run: python -m agent_economy.task_discovery --page-size 100 --out output/agenc_task_candidates.json
+
+      - name: Verify candidate accounts and pinned specs (read-only)
+        env:
+          SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+        run: python -m agent_economy.live_task_audit --page-size 100 --out output/agenc_live_task_audit.json
+
+      - name: Upload scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agenc-readonly-scan-${{ github.run_id }}
+          path: output/*.json
+          if-no-files-found: warn
+          retention-days: 14
