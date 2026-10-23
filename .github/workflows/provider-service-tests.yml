@@ -1,0 +1,35 @@
+name: Provider Service Tests
+on:
+  push:
+    branches: [agenc-provider-service-mvp]
+    paths:
+      - 'agent_economy/provider_service.py'
+      - 'tests/test_provider_service.py'
+      - 'provider_service/**'
+      - 'requirements-worker.txt'
+      - '.github/workflows/provider-service-tests.yml'
+  pull_request:
+    branches: [main, agenc-readiness-hardening]
+    paths:
+      - 'agent_economy/provider_service.py'
+      - 'tests/test_provider_service.py'
+      - 'provider_service/**'
+      - 'requirements-worker.txt'
+      - '.github/workflows/provider-service-tests.yml'
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install worker runtime dependency
+        run: python -m pip install -r requirements-worker.txt
+      - name: Run full unit test suite
+        run: python -m unittest discover -s tests -v
+      - name: Compile worker service
+        run: python -m py_compile agent_economy/provider_service.py
