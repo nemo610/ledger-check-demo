@@ -1,0 +1,24 @@
+name: CSV JSON Guard tests
+on:
+  push:
+    branches: [csv-json-github-action]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate repository data files
+        env:
+          INPUT_PATH: .
+          FAIL_ON_EMPTY_CSV: "false"
+        run: python3 validate_files.py
