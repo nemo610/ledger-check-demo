@@ -16,11 +16,11 @@ export default defineStore({
   api: { baseUrl: "https://api.agenc.ag" },
   referrer: {
     wallet: commissionWallet,
-    feeBps: 1500,
+    feeBps: 250,
   },
   operator: {
     wallet: commissionWallet,
-    feeBps: 2000,
+    feeBps: 500,
   },
   branding: { poweredBy: true },
   curation: { requireModeration: true },
