@@ -104,6 +104,8 @@ def discover_tasks(*, page_size: int = 100, timeout: float = 10.0,
     now = int(time.time()) if now_unix is None else int(now_unix)
     query = urlencode({"status": "open", "actionable": "true", "page": 1, "pageSize": page_size})
     payload = fetcher(f"{API_BASE}/api/tasks?{query}", timeout=timeout)
+    if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
+        raise DiscoveryError("AgenC task response has an unexpected schema")
     ranked = []
     for task in payload["items"]:
         summary = _rank_task(task, now_unix=now)
