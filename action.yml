@@ -1,0 +1,24 @@
+name: "Nemo CSV JSON Guard"
+description: "Validate CSV structure and JSON syntax in your GitHub workflow."
+author: "Nemo"
+inputs:
+  path:
+    description: "File or directory to validate (directory scans CSV and JSON files recursively)."
+    required: false
+    default: "."
+  fail_on_empty_csv:
+    description: "Fail when a CSV file has no data rows."
+    required: false
+    default: "false"
+runs:
+  using: "composite"
+  steps:
+    - name: Validate CSV and JSON files
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        FAIL_ON_EMPTY_CSV: ${{ inputs.fail_on_empty_csv }}
+      run: python3 "${{ github.action_path }}/validate_files.py"
+branding:
+  icon: "check-circle"
+  color: "green"
