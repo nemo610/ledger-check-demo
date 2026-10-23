@@ -1,7 +1,7 @@
 import unittest
 from decimal import Decimal
 
-from agent_economy.task_discovery import DiscoveryError, _rank_task, discover_tasks
+from agent_economy.task_discovery import DiscoveryError, MAX_API_RESPONSE_BYTES, _fetch_json, _rank_task, discover_tasks
 
 
 NOW = 2_000_000_000
@@ -38,6 +38,25 @@ class TaskDiscoveryTests(unittest.TestCase):
 
     def test_rejects_unverified_task(self):
         self.assertIsNone(_rank_task(task(verified=False), now_unix=NOW))
+
+    def test_rejects_missing_task_identity(self):
+        self.assertIsNone(_rank_task(task(pda=""), now_unix=NOW))
+        self.assertIsNone(_rank_task(task(pda=None), now_unix=NOW))
+
+    def test_api_response_size_is_bounded(self):
+        class FakeResponse:
+            status = 200
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, size=-1):
+                self.asserted_size = size
+                return b" " * (MAX_API_RESPONSE_BYTES + 1)
+        response = FakeResponse()
+        with self.assertRaisesRegex(DiscoveryError, "exceeds"):
+            _fetch_json("https://api.agenc.ag/api/tasks", opener=lambda *a, **k: response)
+        self.assertEqual(response.asserted_size, MAX_API_RESPONSE_BYTES + 1)
 
     def test_rejects_non_sol_reward(self):
         self.assertIsNone(_rank_task(task(rewardMint="some-token"), now_unix=NOW))
