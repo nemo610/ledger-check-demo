@@ -1,10 +1,10 @@
 # AgentBazaar integration for Data Check
 
-Status: integration branch only; registration has NOT been submitted. Public service deployment exists, but marketplace protocol and registration authentication remain unverified.
+Status: code deployed to the separate free Render test service; CI unit tests and HTTPS smoke test passed. Registration has NOT been submitted, and the marketplace account/settlement are not verified.
 
 ## Why this marketplace
 
-The official AgentBazaar repository describes free registration, platform-paid Solana gas, USDC payments, and a push endpoint mode. However, its SKILLS.md raw-registration example conflicts with current API-reference docs that require wallet-signature headers. The exact push-job request/response contract is also not established by the docs reviewed. Therefore, no registration request will be sent by this integration until those points are resolved. No marketplace eligibility or revenue is guaranteed.
+The official AgentBazaar repository describes free registration, platform-paid Solana gas, USDC payments, and Gateway Protocol v1 over WebSocket. The registration guide and API reference require wallet-signature headers, while SKILLS.md also includes a raw-registration example without them. We will not guess which path the live service accepts or generate a wallet recovery phrase that cannot be safely delivered to the owner. No marketplace eligibility or revenue is guaranteed.
 
 Official references:
 - https://agentbazaar.dev/
@@ -14,9 +14,10 @@ Official references:
 ## What this branch changes
 
 - Keeps the existing POST /v1/validate API.
-- Adds POST / as an AgentBazaar push webhook.
-- The current webhook adapter expects JSON with a non-empty `task` string and `payload` containing `format` (`csv` or `json`), `content` (text), and optional `filename`. This is our proposed adapter contract, not yet verified against AgentBazaar's live push dispatcher.
-- Returns a JSON object with `result` and `task_status`.
+- Keeps POST / as a generic HTTP test adapter, but it is not claimed to match AgentBazaar's live dispatch contract.
+- Adds `agent_economy/agentbazaar_worker.py`, which uses the official `agentsbazaar-worker` Gateway Protocol SDK to accept structured jobs and return validation results.
+- The worker accepts only `filename`, `format` (`csv` or `json`), and `content`; it rejects extra fields, URLs, and unstructured payloads. It never executes task instructions or stores file contents.
+- When `AGENTBAZAAR_TOKEN` is configured, the web service starts the Gateway worker in a background thread. Without the token, the worker stays disabled and the HTTP API still runs.
 - Does not store uploaded content, sign transactions, or claim payment settlement is verified.
 - Adds tests for the new webhook route.
 
@@ -51,18 +52,17 @@ Expected response shape:
 
 ## Safe onboarding steps
 
-1. Deploy this branch as a separate Render web service or test environment. Do not change the existing AgenC service until the new service passes its tests.
-2. Verify `GET /health` returns `marketplace_webhook: true`.
-3. Run `python3 scripts/register_agentbazaar.py` for a read-only preflight. It never creates an account or wallet.
-4. Resolve the official registration-authentication discrepancy and confirm the live push-dispatch schema with AgentBazaar support/docs.
-5. Only then implement the verified registration flow. Do not paste wallet recovery phrases or private keys into ChatGPT, GitHub, or Render.
-6. After a verified registration, submit a test task using synthetic content and independently verify delivery and payment before advertising the agent as commercially operational.
+1. Verify the GitHub Actions result for both worker unit tests and the HTTPS smoke test.
+2. The Render service must install `requirements.txt` before `AGENTBAZAAR_TOKEN` is configured; its current explicit build command only runs `compileall`, so the official SDK is not yet installed there.
+3. Complete registration using the official supported wallet-signature flow, and deliver/store any generated recovery phrase securely in the owner's own password manager. Do not send it through ChatGPT, GitHub, or logs.
+4. Set `AGENTBAZAAR_TOKEN` as a Render secret only after registration is completed and the token can be handled safely.
+5. After the worker logs a successful Gateway `READY`, submit a test task using synthetic content and independently verify delivery and payment before advertising the agent as commercially operational.
 
 ## Important security and status notes
 
 - Never paste a seed phrase or private key into ChatGPT, GitHub, issue comments, or support messages.
 - Never commit `credentials.json` or copy it into the repository.
 - The registration helper is deliberately read-only; it cannot submit registration or create a wallet.
-- The exact marketplace push payload has not yet been validated end-to-end.
-- No registration, paid job, or settlement has been performed by this code change.
-- The branch has not been deployed or production-tested as part of this commit.
+- The WebSocket worker code is implemented and unit-tested, but is not connected because no marketplace token is configured.
+- No registration, paid job, or settlement has been performed.
+- The live HTTP adapter smoke test is successful; this does not prove WebSocket onboarding or payment settlement.
