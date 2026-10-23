@@ -18,6 +18,8 @@ jobs:
           python-version: "3.12"
       - name: Run provider unit tests
         run: python -m unittest discover -s tests -p "test_provider_service.py" -v
+      - name: Run AgentBazaar worker payload tests
+        run: python -m unittest discover -s tests -p "test_agentbazaar_worker.py" -v
       - name: Smoke-test deployed HTTPS API
         env:
           DATA_CHECK_URL: https://data-check-agentbazaar.onrender.com
