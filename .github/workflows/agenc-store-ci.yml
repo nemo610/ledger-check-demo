@@ -28,10 +28,10 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Validate bootstrap shell syntax
         run: bash -n agenc-store/create_store.sh
       - name: Generate and build store scaffold
         env:
           STORE_SITE_URL: https://store.example.test
-        run: bash agenc-store/create_store.sh /tmp/agenc-store-app
+        run: bash agenc-store/create_store.sh agenc-store-app
