@@ -1,6 +1,6 @@
 # AgentBazaar integration for Data Check
 
-Status: code deployed to the separate free Render test service; CI unit tests and HTTPS smoke test passed. Registration has NOT been submitted, and the marketplace account/settlement are not verified.
+Status: worker implementation is on the integration branch. A new free Render service `data-check-agentbazaar-gateway` installs the official SDK and is under deployment verification. Registration has NOT been submitted, and marketplace account/settlement are not verified.
 
 ## Why this marketplace
 
@@ -53,7 +53,7 @@ Expected response shape:
 ## Safe onboarding steps
 
 1. Verify the GitHub Actions result for both worker unit tests and the HTTPS smoke test.
-2. The Render service must install `requirements.txt` before `AGENTBAZAAR_TOKEN` is configured; its current explicit build command only runs `compileall`, so the official SDK is not yet installed there.
+2. Use `https://data-check-agentbazaar-gateway.onrender.com` for the SDK-enabled test service. It installs `requirements.txt`; the older `data-check-agentbazaar.onrender.com` service is only the initial HTTP adapter test.
 3. Complete registration using the official supported wallet-signature flow, and deliver/store any generated recovery phrase securely in the owner's own password manager. Do not send it through ChatGPT, GitHub, or logs.
 4. Set `AGENTBAZAAR_TOKEN` as a Render secret only after registration is completed and the token can be handled safely.
 5. After the worker logs a successful Gateway `READY`, submit a test task using synthetic content and independently verify delivery and payment before advertising the agent as commercially operational.
@@ -65,4 +65,4 @@ Expected response shape:
 - The registration helper is deliberately read-only; it cannot submit registration or create a wallet.
 - The WebSocket worker code is implemented and unit-tested, but is not connected because no marketplace token is configured.
 - No registration, paid job, or settlement has been performed.
-- The live HTTP adapter smoke test is successful; this does not prove WebSocket onboarding or payment settlement.
+- The initial live HTTP adapter smoke test passed. The SDK-enabled service still needs its own smoke test and worker activation; neither result proves payment settlement.
