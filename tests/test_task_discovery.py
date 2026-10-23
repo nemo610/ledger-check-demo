@@ -45,6 +45,7 @@ class TaskDiscoveryTests(unittest.TestCase):
     def test_rejects_expired_or_zero_reward(self):
         self.assertIsNone(_rank_task(task(deadlineUnix=NOW - 1), now_unix=NOW))
         self.assertIsNone(_rank_task(task(rewardLamports="0"), now_unix=NOW))
+        self.assertIsNone(_rank_task(task(rewardLamports="1.5"), now_unix=NOW))
 
     def test_rejects_missing_https_spec_or_hash(self):
         self.assertIsNone(_rank_task(task(jobSpecUri="http://example.org/spec"), now_unix=NOW))
@@ -66,6 +67,15 @@ class TaskDiscoveryTests(unittest.TestCase):
         self.assertFalse(result["write_operations_enabled"])
         self.assertEqual(result["claims_made"], 0)
         self.assertEqual(result["payments_made"], 0)
+
+    def test_equal_rewards_prioritize_nearest_deadline(self):
+        later = task(pda="later", deadlineUnix=NOW + 7200)
+        sooner = task(pda="sooner", deadlineUnix=NOW + 600)
+        result = discover_tasks(
+            now_unix=NOW,
+            fetcher=lambda url, timeout: {"items": [later, sooner], "total": 2},
+        )
+        self.assertEqual([item["task_id"] for item in result["candidates"]], ["sooner", "later"])
 
     def test_unexpected_schema_fails_closed(self):
         with self.assertRaises(DiscoveryError):
