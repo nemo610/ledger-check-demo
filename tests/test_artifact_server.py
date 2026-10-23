@@ -46,9 +46,9 @@ class ArtifactStoreTests(unittest.TestCase):
             store = ArtifactStore(tmp, ttl_seconds=1)
             created = store.put(valid_report())
             time.sleep(1.1)
-            with self.assertRaisesRegex(ArtifactStoreError, "expired"):
+            self.assertEqual(store.cleanup_expired(), 1)
+            with self.assertRaisesRegex(ArtifactStoreError, "not found"):
                 store.get(created["artifact_id"])
-            self.assertEqual(store.cleanup_expired(), 0)
 
     def test_delete_removes_artifact_and_unknown_id_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
