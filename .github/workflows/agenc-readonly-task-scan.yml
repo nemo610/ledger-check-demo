@@ -38,7 +38,7 @@ jobs:
 
       - name: Verify candidate accounts and pinned specs (read-only)
         env:
-          SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+          SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
         run: python -m agent_economy.live_task_audit --page-size 100 --out output/agenc_live_task_audit.json
 
       - name: Upload scan reports
