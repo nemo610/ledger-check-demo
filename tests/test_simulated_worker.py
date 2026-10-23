@@ -98,8 +98,9 @@ class SimulatedWorkerTests(unittest.TestCase):
     def test_oversized_and_invalid_json_specs_rejected(self):
         with self.assertRaisesRegex(JobRejected, "limit"):
             self.validate(spec=b"x" * (256 * 1024 + 1))
+        invalid = b"not-json"
         with self.assertRaisesRegex(JobRejected, "UTF-8 JSON"):
-            self.validate(spec=b"not-json")
+            self.validate(task=envelope(invalid), spec=invalid)
 
     def test_duplicate_task_id_rejected_without_second_receipt(self):
         seen = set()
