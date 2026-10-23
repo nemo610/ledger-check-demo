@@ -13,6 +13,7 @@ import os
 import re
 import secrets
 import threading
+import tempfile
 import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -53,6 +54,21 @@ class ArtifactStore:
             raise ArtifactStoreError("Invalid artifact ID")
         return self.root / f"{artifact_id}.json", self.root / f"{artifact_id}.expires"
 
+    def _atomic_write(self, path: Path, data: bytes) -> None:
+        """Write one file atomically within the store filesystem."""
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{path.name}.", suffix=".tmp", dir=self.root
+        )
+        temp_path = Path(temp_name)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(data)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temp_path, path)
+        finally:
+            temp_path.unlink(missing_ok=True)
+
     def put(self, raw: bytes) -> dict:
         if not raw or len(raw) > self.max_bytes:
             raise ArtifactStoreError("Artifact is empty or exceeds the size limit")
@@ -81,11 +97,14 @@ class ArtifactStore:
         artifact_path, expiry_path = self._paths(artifact_id)
         expires_at = int(time.time()) + self.ttl_seconds
         with self._lock:
-            artifact_path.write_bytes(encoded)
             try:
-                expiry_path.write_text(str(expires_at), encoding="ascii")
+                self._atomic_write(artifact_path, encoded)
+                self._atomic_write(expiry_path, str(expires_at).encode("ascii"))
             except OSError:
+                # A newly generated ID cannot refer to an earlier valid record.
+                # Remove either half if the second atomic replace fails.
                 artifact_path.unlink(missing_ok=True)
+                expiry_path.unlink(missing_ok=True)
                 raise
         return {
             "artifact_id": artifact_id,
@@ -167,6 +186,10 @@ def make_handler(store: ArtifactStore, token: str):
         def _valid_signed_download(self, artifact_id: str) -> bool:
             try:
                 query = parse_qs(urlsplit(self.path).query, strict_parsing=True)
+                if set(query) != {"expires", "sig"} or any(
+                    len(values) != 1 for values in query.values()
+                ):
+                    return False
                 expires = int(query["expires"][0])
                 supplied_signature = query["sig"][0]
             except (KeyError, IndexError, ValueError):
