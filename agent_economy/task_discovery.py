@@ -7,13 +7,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 from typing import Callable
 
@@ -60,9 +61,18 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
         return None
     spec_uri = task.get("jobSpecUri")
     spec_hash = task.get("jobSpecHash")
-    if not isinstance(spec_uri, str) or not spec_uri.startswith("https://"):
+    if not isinstance(spec_uri, str):
         return None
-    if not isinstance(spec_hash, str) or not spec_hash.strip():
+    try:
+        parsed_uri = urlsplit(spec_uri)
+        if (parsed_uri.scheme != "https" or not parsed_uri.hostname
+                or parsed_uri.username is not None or parsed_uri.password is not None
+                or parsed_uri.fragment):
+            return None
+        parsed_uri.port  # Force validation of malformed ports.
+    except ValueError:
+        return None
+    if not isinstance(spec_hash, str) or not re.fullmatch(r"[a-fA-F0-9]{64}", spec_hash):
         return None
     try:
         actionability = task.get("actionability", {})
