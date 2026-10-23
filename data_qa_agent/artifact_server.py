@@ -17,7 +17,7 @@ import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 MAX_ARTIFACT_BYTES = 1 * 1024 * 1024
 _ARTIFACT_ID = re.compile(r"^[A-Za-z0-9_-]{32,64}$")
@@ -143,6 +143,8 @@ def make_handler(store: ArtifactStore, token: str):
     if len(token) < 32:
         raise ValueError("ARTIFACT_API_TOKEN must contain at least 32 characters")
 
+    signing_secret = token.encode("utf-8")
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "LedgerCheckArtifact/0.1"
 
@@ -150,13 +152,32 @@ def make_handler(store: ArtifactStore, token: str):
             # Avoid logging request headers, tokens, or artifact contents.
             super().log_message("%s", "request handled")
 
-        def _authorized(self) -> bool:
+        def _has_bearer_token(self) -> bool:
             supplied = self.headers.get("Authorization", "")
             expected = f"Bearer {token}"
-            if not hmac.compare_digest(supplied.encode("utf-8"), expected.encode("utf-8")):
+            return hmac.compare_digest(supplied.encode("utf-8"), expected.encode("utf-8"))
+
+        def _authorized(self) -> bool:
+            if not self._has_bearer_token():
                 self.send_error(401, "Unauthorized")
                 return False
             return True
+
+        def _valid_signed_download(self, artifact_id: str) -> bool:
+            try:
+                query = parse_qs(urlsplit(self.path).query, strict_parsing=True)
+                expires = int(query["expires"][0])
+                supplied_signature = query["sig"][0]
+            except (KeyError, IndexError, ValueError):
+                return False
+            if expires <= int(time.time()) or not re.fullmatch(r"[a-f0-9]{64}", supplied_signature):
+                return False
+            expected_signature = hmac.new(
+                signing_secret,
+                f"{artifact_id}:{expires}".encode("ascii"),
+                hashlib.sha256,
+            ).hexdigest()
+            return hmac.compare_digest(supplied_signature, expected_signature)
 
         def _json(self, status: int, payload: dict) -> None:
             raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -183,6 +204,13 @@ def make_handler(store: ArtifactStore, token: str):
                 return
             try:
                 result = store.put(self.rfile.read(length))
+                expires = int(datetime.fromisoformat(result["expires_at"]).timestamp())
+                signature = hmac.new(
+                    signing_secret,
+                    f"{result['artifact_id']}:{expires}".encode("ascii"),
+                    hashlib.sha256,
+                ).hexdigest()
+                result["download_path"] = f"{result['path']}?expires={expires}&sig={signature}"
             except ArtifactStoreError as exc:
                 self._json(400, {"error": str(exc)})
                 return
@@ -196,11 +224,12 @@ def make_handler(store: ArtifactStore, token: str):
             return match.group(1) if match else None
 
         def do_GET(self) -> None:
-            if not self._authorized():
-                return
             artifact_id = self._artifact_id()
             if artifact_id is None:
                 self.send_error(404)
+                return
+            if not self._has_bearer_token() and not self._valid_signed_download(artifact_id):
+                self.send_error(401, "Unauthorized or invalid download signature")
                 return
             try:
                 raw, digest = store.get(artifact_id)
