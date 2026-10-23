@@ -1,0 +1,154 @@
+"""Read-only, conservative discovery of public AgenC tasks.
+
+Uses the documented GET /api/tasks read endpoint. It never claims tasks,
+connects a signer, builds transactions, or spends funds.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+from typing import Callable
+
+API_BASE = "https://api.agenc.ag"
+LAMPORTS_PER_SOL = Decimal("1000000000")
+PROTOCOL_FEE_BPS = Decimal("500")
+
+
+class DiscoveryError(RuntimeError):
+    """A public task snapshot could not be safely interpreted."""
+
+
+def _fetch_json(url: str, *, timeout: float = 10.0, opener: Callable = urlopen) -> dict:
+    request = Request(url, headers={
+        "Accept": "application/json",
+        "User-Agent": "ledger-check-agent-task-discovery/0.1",
+    })
+    try:
+        with opener(request, timeout=timeout) as response:
+            if response.status != 200:
+                raise DiscoveryError(f"AgenC read API returned HTTP {response.status}")
+            payload = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise DiscoveryError(f"Could not read AgenC tasks: {exc}") from exc
+    if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
+        raise DiscoveryError("AgenC task response has an unexpected schema")
+    return payload
+
+
+def _rank_task(task: dict, *, now_unix: int) -> dict | None:
+    """Return a conservative candidate summary, or None when not eligible."""
+    if not isinstance(task, dict):
+        return None
+    if task.get("status") != "open" or task.get("rewardMint") is not None:
+        return None
+    try:
+        reward_lamports = Decimal(str(task.get("rewardLamports", "")))
+        deadline = int(task.get("deadlineUnix", 0))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    if not reward_lamports.is_finite() or reward_lamports <= 0 or deadline <= now_unix:
+        return None
+    # Be conservative: require the strongest public evidence and a pinned HTTPS spec.
+    if task.get("verified") is not True:
+        return None
+    spec_uri = task.get("jobSpecUri")
+    spec_hash = task.get("jobSpecHash")
+    if not isinstance(spec_uri, str) or not spec_uri.startswith("https://"):
+        return None
+    if not isinstance(spec_hash, str) or not spec_hash.strip():
+        return None
+    try:
+        actionability = task.get("actionability", {})
+        if isinstance(actionability, dict) and actionability.get("actionable") is False:
+            return None
+    except AttributeError:
+        return None
+
+    gross_sol = reward_lamports / LAMPORTS_PER_SOL
+    protocol_fee_upper_bound_sol = gross_sol * PROTOCOL_FEE_BPS / Decimal("10000")
+    # Operator/referrer legs and task-specific costs may further reduce worker payout.
+    worker_upper_bound_sol = gross_sol - protocol_fee_upper_bound_sol
+    return {
+        "task_id": str(task.get("pda", "")),
+        "title": str(task.get("title", "")),
+        "status": "open",
+        "verified": True,
+        "reward_gross_sol": str(gross_sol.quantize(Decimal("0.000000001"))),
+        "worker_payout_upper_bound_sol": str(worker_upper_bound_sol.quantize(Decimal("0.000000001"))),
+        "deadline_unix": deadline,
+        "seconds_to_deadline": deadline - now_unix,
+        "job_spec_uri": spec_uri,
+        "job_spec_hash": spec_hash,
+        "required_capabilities": task.get("requiredCapabilities"),
+        "min_reputation": task.get("minReputation"),
+        "max_workers": task.get("maxWorkers"),
+        "current_workers": task.get("currentWorkers"),
+        "note": "Upper bound only: operator/referrer fees, execution costs, eligibility gates and acceptance may reduce or eliminate net earnings.",
+    }
+
+
+def discover_tasks(*, page_size: int = 100, timeout: float = 10.0,
+                   now_unix: int | None = None, fetcher: Callable = _fetch_json) -> dict:
+    if not 1 <= page_size <= 100:
+        raise ValueError("page_size must be between 1 and 100")
+    if not 0 < timeout <= 30:
+        raise ValueError("timeout must be greater than 0 and at most 30 seconds")
+    now = int(time.time()) if now_unix is None else int(now_unix)
+    query = urlencode({"status": "open", "actionable": "true", "page": 1, "pageSize": page_size})
+    payload = fetcher(f"{API_BASE}/api/tasks?{query}", timeout=timeout)
+    ranked = []
+    for task in payload["items"]:
+        summary = _rank_task(task, now_unix=now)
+        if summary is not None:
+            ranked.append(summary)
+    ranked.sort(key=lambda item: (Decimal(item["worker_payout_upper_bound_sol"]), item["seconds_to_deadline"]), reverse=True)
+    return {
+        "provider": "agenc",
+        "mode": "read_only",
+        "queried_at_utc": datetime.fromtimestamp(now, timezone.utc).isoformat(),
+        "source": f"{API_BASE}/api/tasks?{query}",
+        "source_total_reported": payload.get("total"),
+        "candidate_count": len(ranked),
+        "candidates": ranked,
+        "write_operations_enabled": False,
+        "claims_made": 0,
+        "transactions_signed": 0,
+        "payments_made": 0,
+        "limitations": [
+            "Public indexer snapshot can be delayed by about 45 seconds.",
+            "A candidate is not a commitment that our agent qualifies or can complete the work.",
+            "Payout is an upper bound after the 5% protocol fee only; operator/referrer fees and costs may reduce it.",
+            "No task is claimed, no wallet is loaded, and no transaction is built or signed.",
+            "A human must inspect the full specification, deadline, reward, eligibility, costs and acceptance terms before any action.",
+        ],
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Read-only AgenC task scan; never claims or signs.")
+    parser.add_argument("--out", default="output/agenc_task_candidates.json")
+    parser.add_argument("--page-size", type=int, default=100)
+    args = parser.parse_args(argv)
+    try:
+        snapshot = discover_tasks(page_size=args.page_size)
+    except (DiscoveryError, ValueError) as exc:
+        print(f"Discovery unavailable: {exc}", file=sys.stderr)
+        return 2
+    output = Path(args.out)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"Read-only snapshot saved: {output}; candidates={snapshot['candidate_count']}")
+    print("No task claimed; no wallet signature or payment.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
