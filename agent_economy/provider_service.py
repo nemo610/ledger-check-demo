@@ -91,8 +91,28 @@ def app(environ, start_response):
         return _response(start_response,"413 Payload Too Large",{"error":"content_too_large","message":str(exc)})
     return _response(start_response,"200 OK",result)
 
+def _start_agentbazaar_worker_if_configured() -> None:
+    """Start the marketplace worker only when a token is explicitly configured."""
+    token = os.getenv("AGENTBAZAAR_TOKEN", "").strip()
+    if not token:
+        print("AgentBazaar worker disabled: AGENTBAZAAR_TOKEN is not configured.")
+        return
+
+    import threading
+    from agent_economy.agentbazaar_worker import run_worker_forever
+
+    thread = threading.Thread(
+        target=run_worker_forever,
+        name="agentbazaar-gateway-worker",
+        daemon=True,
+    )
+    thread.start()
+    print("AgentBazaar Gateway worker thread started; token value is not logged.")
+
+
 if __name__=="__main__":
     port=int(os.getenv("PORT","8080"))
+    _start_agentbazaar_worker_if_configured()
     with make_server("0.0.0.0",port,app) as server:
-        print(f"Development server listening on port {port}")
+        print(f"Data Check HTTP service listening on port {port}")
         server.serve_forever()
