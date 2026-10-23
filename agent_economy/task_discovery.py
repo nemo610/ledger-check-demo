@@ -19,7 +19,6 @@ from typing import Callable
 
 API_BASE = "https://api.agenc.ag"
 LAMPORTS_PER_SOL = Decimal("1000000000")
-PROTOCOL_FEE_BPS = Decimal("500")
 
 
 class DiscoveryError(RuntimeError):
@@ -73,16 +72,15 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
         return None
 
     gross_sol = reward_lamports / LAMPORTS_PER_SOL
-    protocol_fee_upper_bound_sol = gross_sol * PROTOCOL_FEE_BPS / Decimal("10000")
-    # Operator/referrer legs and task-specific costs may further reduce worker payout.
-    worker_upper_bound_sol = gross_sol - protocol_fee_upper_bound_sol
+    # Fee splits vary by task; gross reward is the only safe upper bound without
+    # verified fee-leg fields from the live task account.
     return {
         "task_id": str(task.get("pda", "")),
         "title": str(task.get("title", "")),
         "status": "open",
         "verified": True,
         "reward_gross_sol": str(gross_sol.quantize(Decimal("0.000000001"))),
-        "worker_payout_upper_bound_sol": str(worker_upper_bound_sol.quantize(Decimal("0.000000001"))),
+        "gross_reward_upper_bound_sol": str(gross_sol.quantize(Decimal("0.000000001"))),
         "deadline_unix": deadline,
         "seconds_to_deadline": deadline - now_unix,
         "job_spec_uri": spec_uri,
@@ -91,7 +89,7 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
         "min_reputation": task.get("minReputation"),
         "max_workers": task.get("maxWorkers"),
         "current_workers": task.get("currentWorkers"),
-        "note": "Upper bound only: operator/referrer fees, execution costs, eligibility gates and acceptance may reduce or eliminate net earnings.",
+        "note": "Gross reward only, not a net payout estimate. Task-specific protocol/operator/referrer fees, execution costs, eligibility gates and acceptance may reduce or eliminate earnings.",
     }
 
 
@@ -111,7 +109,7 @@ def discover_tasks(*, page_size: int = 100, timeout: float = 10.0,
         summary = _rank_task(task, now_unix=now)
         if summary is not None:
             ranked.append(summary)
-    ranked.sort(key=lambda item: (Decimal(item["worker_payout_upper_bound_sol"]), item["seconds_to_deadline"]), reverse=True)
+    ranked.sort(key=lambda item: (Decimal(item["gross_reward_upper_bound_sol"]), item["seconds_to_deadline"]), reverse=True)
     return {
         "provider": "agenc",
         "mode": "read_only",
@@ -127,7 +125,7 @@ def discover_tasks(*, page_size: int = 100, timeout: float = 10.0,
         "limitations": [
             "Public indexer snapshot can be delayed by about 45 seconds.",
             "A candidate is not a commitment that our agent qualifies or can complete the work.",
-            "Payout is an upper bound after the 5% protocol fee only; operator/referrer fees and costs may reduce it.",
+            "Gross reward is not net payout; fee splits vary by task, and execution costs or rejection may eliminate earnings.",
             "No task is claimed, no wallet is loaded, and no transaction is built or signed.",
             "A human must inspect the full specification, deadline, reward, eligibility, costs and acceptance terms before any action.",
         ],
