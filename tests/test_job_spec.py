@@ -29,6 +29,12 @@ class JobSpecVerificationTests(unittest.TestCase):
                 with self.assertRaisesRegex(JobSpecError, "valid UTF-8 JSON"):
                     verify_job_spec(raw, hashlib.sha256(raw).hexdigest())
 
+    def test_rejects_duplicate_keys_and_nonstandard_numbers(self):
+        for raw in (b'{"title":"first","title":"second"}', b'{"value":NaN}'):
+            with self.subTest(raw=raw):
+                with self.assertRaises(JobSpecError):
+                    verify_job_spec(raw, hashlib.sha256(raw).hexdigest())
+
     def test_rejects_non_object_root(self):
         raw = b'["not-an-object"]'
         with self.assertRaisesRegex(JobSpecError, "root must be an object"):
