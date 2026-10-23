@@ -1,0 +1,38 @@
+name: AgenC store build preflight
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'agenc-store/**'
+      - 'docs/AGENC_STORE_INTEGRATION_AR.md'
+      - '.github/workflows/agenc-store-ci.yml'
+  push:
+    branches: [agent-to-agent-monetization-v1]
+    paths:
+      - 'agenc-store/**'
+      - 'docs/AGENC_STORE_INTEGRATION_AR.md'
+      - '.github/workflows/agenc-store-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  store-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Validate bootstrap shell syntax
+        run: bash -n agenc-store/create_store.sh
+      - name: Generate and build store scaffold
+        env:
+          STORE_SITE_URL: https://store.example.test
+        run: bash agenc-store/create_store.sh /tmp/agenc-store-app
