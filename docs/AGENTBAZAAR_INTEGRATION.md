@@ -1,10 +1,10 @@
 # AgentBazaar integration for Data Check
 
-Status: integration branch only; registration has NOT been submitted.
+Status: integration branch only; registration has NOT been submitted. Public service deployment exists, but marketplace protocol and registration authentication remain unverified.
 
 ## Why this marketplace
 
-The official AgentBazaar project documents free registration, platform-paid Solana gas, USDC settlement, and a push endpoint mode. This is a better fit for a no-upfront-SOL trial than the AgenC registration path. Marketplace claims and future revenue are not guarantees; this repository does not claim that an agent is registered or that settlement has been verified.
+The official AgentBazaar repository describes free registration, platform-paid Solana gas, USDC payments, and a push endpoint mode. However, its SKILLS.md raw-registration example conflicts with current API-reference docs that require wallet-signature headers. The exact push-job request/response contract is also not established by the docs reviewed. Therefore, no registration request will be sent by this integration until those points are resolved. No marketplace eligibility or revenue is guaranteed.
 
 Official references:
 - https://agentbazaar.dev/
@@ -15,7 +15,7 @@ Official references:
 
 - Keeps the existing POST /v1/validate API.
 - Adds POST / as an AgentBazaar push webhook.
-- The webhook expects JSON with a non-empty `task` string and `payload` containing `format` (`csv` or `json`), `content` (text), and optional `filename`.
+- The current webhook adapter expects JSON with a non-empty `task` string and `payload` containing `format` (`csv` or `json`), `content` (text), and optional `filename`. This is our proposed adapter contract, not yet verified against AgentBazaar's live push dispatcher.
 - Returns a JSON object with `result` and `task_status`.
 - Does not store uploaded content, sign transactions, or claim payment settlement is verified.
 - Adds tests for the new webhook route.
@@ -53,17 +53,16 @@ Expected response shape:
 
 1. Deploy this branch as a separate Render web service or test environment. Do not change the existing AgenC service until the new service passes its tests.
 2. Verify `GET /health` returns `marketplace_webhook: true`.
-3. Run `python3 scripts/register_agentbazaar.py --endpoint https://YOUR-NEW-SERVICE.onrender.com` for a preflight only. This does not register anything.
-4. Review the price. The helper defaults to 0.10 USDC per request; change it explicitly if desired.
-5. When ready, run the helper again with `--register` and type `REGISTER` at the prompt.
-6. The official registration endpoint may return an API token and a wallet recovery phrase. The helper writes the response to `~/.config/data-check-agentbazaar/credentials.json` with restrictive local permissions and never prints the secrets. Back up the recovery phrase securely. Never commit or upload this file.
-7. Submit a test task using synthetic content and verify delivery and payment independently before advertising the agent as commercially operational.
+3. Run `python3 scripts/register_agentbazaar.py` for a read-only preflight. It never creates an account or wallet.
+4. Resolve the official registration-authentication discrepancy and confirm the live push-dispatch schema with AgentBazaar support/docs.
+5. Only then implement the verified registration flow. Do not paste wallet recovery phrases or private keys into ChatGPT, GitHub, or Render.
+6. After a verified registration, submit a test task using synthetic content and independently verify delivery and payment before advertising the agent as commercially operational.
 
 ## Important security and status notes
 
 - Never paste a seed phrase or private key into ChatGPT, GitHub, issue comments, or support messages.
 - Never commit `credentials.json` or copy it into the repository.
-- The registration helper is opt-in and will not submit registration unless `--register` is passed and the user types `REGISTER`.
-- If the helper reports that the endpoint is not ready, it exits before registration.
+- The registration helper is deliberately read-only; it cannot submit registration or create a wallet.
+- The exact marketplace push payload has not yet been validated end-to-end.
 - No registration, paid job, or settlement has been performed by this code change.
 - The branch has not been deployed or production-tested as part of this commit.
