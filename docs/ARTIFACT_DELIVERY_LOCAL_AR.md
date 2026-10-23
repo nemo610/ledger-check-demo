@@ -9,7 +9,7 @@ La API autenticada de artefactos está implementada como prototipo en `data_qa_a
 - Rechaza tokens de configuración demasiado cortos, JSON inválido, esquemas incorrectos y archivos por encima del límite.
 - Genera IDs aleatorios no predecibles y calcula el SHA-256 del contenido canónico en el servidor.
 - Devuelve una ruta autenticada, un enlace de descarga firmado de corta duración, tamaño, hash y vencimiento; el vencimiento por defecto es 24 horas. El enlace firmado permite que el comprador descargue el informe sin recibir el token de subida.
-- Permite borrar un artefacto y limpiar vencidos.
+- Permite borrar un artefacto y ejecuta limpieza de vencidos en segundo plano cada cinco minutos.
 - No registra encabezados de autorización ni contenido de artefactos.
 - Por defecto escucha sólo en `127.0.0.1`, no en una interfaz pública.
 
