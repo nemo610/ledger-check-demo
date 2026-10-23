@@ -33,7 +33,7 @@ def _b58decode(value: str) -> bytes:
         number = number * 58 + alphabet.index(char)
     raw = number.to_bytes((number.bit_length() + 7) // 8, "big") if number else b""
     leading_zeroes = len(value) - len(value.lstrip("1"))
-    decoded = b"\\x00" * leading_zeroes + raw
+    decoded = b"\x00" * leading_zeroes + raw
     if len(decoded) != 32:
         raise OnChainVerificationError("Task PDA must decode to exactly 32 bytes")
     return decoded
@@ -180,6 +180,15 @@ def verify_task_on_chain(candidate: dict, *, rpc_url: str, now_unix: int | None 
     if not isinstance(candidate, dict):
         raise OnChainVerificationError("Candidate must be an object")
     pda = candidate.get("task_id")
+    # Validate the endpoint before processing untrusted candidate identifiers.
+    try:
+        parsed = urlsplit(rpc_url)
+        if (parsed.scheme != "https" or not parsed.hostname or parsed.username is not None
+                or parsed.password is not None or parsed.fragment):
+            raise OnChainVerificationError("RPC URL must be HTTPS without credentials or fragment")
+        parsed.port
+    except ValueError as exc:
+        raise OnChainVerificationError("Malformed RPC URL") from exc
     _b58decode(pda)
     response = rpc_call(rpc_url, {
         "jsonrpc": "2.0", "id": 1, "method": "getAccountInfo",
@@ -199,10 +208,6 @@ def verify_task_on_chain(candidate: dict, *, rpc_url: str, now_unix: int | None 
     except (KeyError, TypeError, ValueError) as exc:
         raise OnChainVerificationError("Solana RPC account response has unexpected schema") from exc
     account = parse_task_account(raw, owner=owner, expected_task_id=pda, now_unix=now_unix)
-    try:
-        expected_reward = int(candidate["reward_gross_sol"].replace(".", "").ljust(10, "0"))
-    except (KeyError, AttributeError, ValueError) as exc:
-        raise OnChainVerificationError("Candidate reward is malformed") from exc
     # Avoid trusting float math: convert SOL text to integer lamports exactly.
     from decimal import Decimal, InvalidOperation
     try:
