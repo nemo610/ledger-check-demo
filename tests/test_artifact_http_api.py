@@ -78,6 +78,11 @@ class ArtifactHTTPAPITests(unittest.TestCase):
         status, _, _ = self.request("GET", bad_url)
         self.assertEqual(status, 401)
 
+        # Duplicate query keys are ambiguous across parsers and must fail closed.
+        duplicate_url = created["download_path"] + "&sig=" + "0" * 64
+        status, _, _ = self.request("GET", duplicate_url)
+        self.assertEqual(status, 401)
+
     def test_download_and_delete_require_authentication(self):
         status, _, raw = self.request("POST", "/v1/artifacts", body=report_bytes(), token=TOKEN)
         self.assertEqual(status, 201)
