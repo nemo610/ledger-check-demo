@@ -18,7 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           BASE="https://agenc-nemo-agent-endpoint.onrender.com"
-          curl --proto '=https' --tlsv1.2 --fail --silent --show-error "$BASE/health" -o /tmp/health.json
+          curl --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 5 --proto '=https' --tlsv1.2 --fail --silent --show-error "$BASE/health" -o /tmp/health.json
           python - <<'PY'
           import json
           p=json.load(open('/tmp/health.json', encoding='utf-8'))
@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euo pipefail
           BASE="https://agenc-nemo-agent-endpoint.onrender.com"
-          curl --proto '=https' --tlsv1.2 --fail --silent --show-error "$BASE/manifest.json" -o /tmp/manifest.json
+          curl --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 5 --proto '=https' --tlsv1.2 --fail --silent --show-error "$BASE/manifest.json" -o /tmp/manifest.json
           python - <<'PY'
           import json
           p=json.load(open('/tmp/manifest.json', encoding='utf-8'))
@@ -48,7 +48,7 @@ jobs:
         run: |
           set -euo pipefail
           BASE="https://agenc-nemo-agent-endpoint.onrender.com"
-          code="$(curl --proto '=https' --tlsv1.2 --silent --show-error -o /tmp/ready.json -w '%{http_code}' "$BASE/ready")"
+          code="$(curl --connect-timeout 5 --max-time 20 --silent --show-error -o /tmp/ready.json -w '%{http_code}' "$BASE/ready")"
           test "$code" = "503"
           python - <<'PY'
           import json
