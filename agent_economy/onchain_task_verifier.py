@@ -185,10 +185,10 @@ def parse_task_account(data: bytes, *, owner: str, now_unix: int | None = None) 
         raise OnChainVerificationError("On-chain task deadline has passed")
     if reward_mint is not None:
         raise OnChainVerificationError("On-chain task reward is an SPL token, not SOL")
-    if capabilities >> 10:
-        raise OnChainVerificationError("Task requires reserved/unknown capability bits")
-    if capabilities != 0:
-        raise OnChainVerificationError("Nonzero capability mapping is not enabled for live execution")
+    # Bit 0 is the protocol's documented COMPUTE capability. Keep every other
+    # nonzero bit fail-closed until its meaning and our worker eligibility are verified.
+    if capabilities & ~1:
+        raise OnChainVerificationError("Task requires unsupported or reserved capability bits")
     if task_type != 0 or max_workers != 1:
         raise OnChainVerificationError("Only exclusive single-worker tasks are enabled for this first execution")
     if current_workers >= max_workers:
@@ -203,7 +203,7 @@ def parse_task_account(data: bytes, *, owner: str, now_unix: int | None = None) 
         "reward_lamports": reward_lamports,
         "deadline_unix": deadline,
         "required_capabilities_bitmask": str(capabilities),
-        "required_capabilities": [],
+        "required_capabilities": ["compute"] if capabilities & 1 else [],
         "reward_mint": None,
         "max_workers": max_workers,
         "current_workers": current_workers,
@@ -322,6 +322,16 @@ def verify_task_on_chain(candidate: dict, *, rpc_url: str, now_unix: int | None 
         raise OnChainVerificationError("API candidate reward disagrees with on-chain reward")
     if candidate.get("deadline_unix") != account["deadline_unix"]:
         raise OnChainVerificationError("API candidate deadline disagrees with on-chain deadline")
+    raw_api_caps = candidate.get("required_capabilities", [])
+    if raw_api_caps == []:
+        api_caps = 0
+    else:
+        try:
+            api_caps = int(raw_api_caps)
+        except (TypeError, ValueError) as exc:
+            raise OnChainVerificationError("API required capabilities are malformed") from exc
+    if api_caps != int(account["required_capabilities_bitmask"]):
+        raise OnChainVerificationError("API required capabilities disagree with on-chain Task")
 
     spec_pda, spec_bump = derive_task_job_spec_pda(pda)
     spec_raw, spec_owner = _get_account(rpc_url, spec_pda, timeout=timeout, rpc_call=rpc_call)
