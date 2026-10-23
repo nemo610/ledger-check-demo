@@ -111,12 +111,20 @@ def audit_snapshot(snapshot: dict, *, rpc_url: str | None,
             if not record["spec_sha256_matches"]:
                 record["status"] = "rejected"
                 record["reason"] = "Downloaded specification SHA-256 does not match indexer hash."
-            else:
+            elif not onchain.get("canonical_pda_derivation_verified") or not onchain.get("job_spec_hash_verified_on_chain"):
                 record["status"] = "partial_verified_not_actionable"
                 record["reason"] = (
-                    "Account/reward/deadline and downloaded spec hash checked, but canonical PDA "
-                    "derivation and task-to-spec binding are not proven. Human review and live "
-                    "execution safeguards remain mandatory."
+                    "Downloaded spec hash matches the indexer, but canonical Task PDA or on-chain "
+                    "TaskJobSpec binding is missing. Human review and execution safeguards remain mandatory."
+                )
+            else:
+                record["canonical_pda_verified"] = True
+                record["job_spec_hash_verified_on_chain"] = True
+                record["status"] = "verified_not_actionable"
+                record["reason"] = (
+                    "Canonical Task PDA, reward, deadline, TaskJobSpec hash/URI and downloaded spec "
+                    "bytes are independently consistent at confirmed commitment. This is still not "
+                    "authorization to claim: inspect the work, net reward, costs and settlement terms."
                 )
         except (SpecVerificationError, KeyError, ValueError, TypeError) as exc:
             record["status"] = "partial_unverified_not_actionable"
@@ -135,8 +143,8 @@ def audit_snapshot(snapshot: dict, *, rpc_url: str | None,
         "live_execution_enabled": False,
         "limitations": [
             "This audit does not claim, execute, submit, or pay for tasks.",
-            "The canonical task PDA derivation is not yet verified by this implementation.",
-            "The indexer jobSpecHash is checked against downloaded bytes, but is not proven to be bound to this account on-chain.",
+            "Verified candidates remain non-actionable; a human must review the complete task, eligibility, deadline, costs and settlement terms.",
+            "This audit does not prove task acceptance or eventual payout; only a confirmed settlement transaction proves payment.",
             "A verified gross reward is not net income; fees, rejection, execution costs, reputation and acceptance terms may reduce payout.",
         ],
     }
@@ -157,9 +165,9 @@ def main(argv: list[str] | None = None) -> int:
     output = Path(args.out)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    verified = sum(item["status"] == "partial_verified_not_actionable"
+    verified = sum(item["status"] == "verified_not_actionable"
                     for item in result["audited_candidates"])
-    print(f"Read-only audit saved: {output}; candidates={result['candidate_count']}; partial_verified={verified}")
+    print(f"Read-only audit saved: {output}; candidates={result['candidate_count']}; verified_not_actionable={verified}")
     print("No task claimed; no transaction signed; no payment made; live execution remains disabled.")
     return 0
 
