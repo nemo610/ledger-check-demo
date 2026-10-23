@@ -20,6 +20,15 @@ class AgenCAPIError(RuntimeError):
     """The provider API could not supply a trustworthy response."""
 
 
+def _validate_payload(payload: object) -> dict:
+    """Validate the response shape even when the transport is mocked/replaced."""
+    if not isinstance(payload, dict) or payload.get("live") is not True:
+        raise AgenCAPIError("AgenC response is not marked live; earnings remain unverified")
+    if not isinstance(payload.get("hires"), list):
+        raise AgenCAPIError("AgenC response has no valid hires list")
+    return payload
+
+
 def _get_json(url: str, timeout: float = 10.0) -> dict:
     request = Request(url, headers={"Accept": "application/json", "User-Agent": "agent-economy-adapter/0.1"})
     try:
@@ -29,11 +38,7 @@ def _get_json(url: str, timeout: float = 10.0) -> dict:
             payload = json.loads(response.read().decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise AgenCAPIError(f"Unable to read AgenC earnings API: {exc}") from exc
-    if not isinstance(payload, dict) or payload.get("live") is not True:
-        raise AgenCAPIError("AgenC response is not marked live; earnings remain unverified")
-    if not isinstance(payload.get("hires"), list):
-        raise AgenCAPIError("AgenC response has no valid hires list")
-    return payload
+    return _validate_payload(payload)
 
 
 def fetch_settled_earnings(wallet: str, *, timeout: float = 10.0) -> dict:
@@ -48,8 +53,8 @@ def fetch_settled_earnings(wallet: str, *, timeout: float = 10.0) -> dict:
     encoded = quote(wallet, safe="")
     referrer_url = f"{API_BASE}/referrers/{encoded}/hires"
     operator_url = f"{API_BASE}/operators/{encoded}/hires"
-    referrer = _get_json(referrer_url, timeout=timeout)
-    operator = _get_json(operator_url, timeout=timeout)
+    referrer = _validate_payload(_get_json(referrer_url, timeout=timeout))
+    operator = _validate_payload(_get_json(operator_url, timeout=timeout))
     return {
         "provider": "agenc",
         "wallet": wallet,
