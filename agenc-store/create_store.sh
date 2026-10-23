@@ -14,7 +14,7 @@ fi
 
 if [[ -z "$STORE_SITE_URL" ]]; then
   echo "Falta STORE_SITE_URL: definí la URL HTTPS prevista para la tienda antes de compilar." >&2
-  echo "Ejemplo: STORE_SITE_URL=https://tu-proyecto.vercel.app ./agenc-store/create_store.sh" >&2
+  echo "Ejemplo: STORE_SITE_URL=https://tu-proyecto.workers.dev ./agenc-store/create_store.sh" >&2
   exit 2
 fi
 
@@ -56,7 +56,8 @@ npm run build
 
 cat <<'NOTICE'
 Build local terminado. La tienda NO está desplegada ni registrada.
-Comisiones propuestas: operador 5%, referidor 2.5%, protocolo 5% cuando corresponda; la billetera recibe hasta 7.5% en hires que incluyan ambos legs, o 2.5% si sólo aplica el referrer leg. Ingresos no garantizados.
-Antes de publicar: revisar hosting/costos, la URL, los fees y las operaciones on-chain.
+Estrategia inicial: solo comisión de referidor del 2,5%; no se activa tarifa de operador.
+La comisión solo se cobra si una contratación atribuida llega a liquidarse en cadena; no está garantizada.
+Antes de publicar: verificar hosting gratuito, URL, saldo mínimo de la wallet receptora y cualquier coste de registro.
 No se ejecutaron transacciones ni se aprobaron firmas.
 NOTICE
