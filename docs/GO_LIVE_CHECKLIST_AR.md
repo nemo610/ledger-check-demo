@@ -24,7 +24,8 @@
 | HTTPS público estable | Pendiente; el servidor escucha en loopback y no incluye TLS |
 | Especificación de oferta | Preparada en `data_qa_agent/listing_spec.json` |
 | Detección pública de tareas | Cliente read-only implementado; consulta real todavía pendiente de ejecución desde un entorno con acceso a la API; filtra tareas y exige URL HTTPS y hash SHA-256 del job spec |
-| Adaptador fail-closed discovery → worker simulado | Implementado con tests sintéticos; exige registro normalizado independiente, atribución explícita, coincidencia de recompensa/deadline/hash y capacidades como lista. El campo público actual `requiredCapabilities: "0"` se rechaza; no hay mapeo oficial verificado todavía |
+| Adaptador fail-closed discovery → worker simulado | Implementado con tests sintéticos; exige registro normalizado independiente, atribución explícita, coincidencia de recompensa/deadline/hash y capacidades como lista. Hash reforzado a SHA-256 hexadecimal y IDs configurados como strings no vacíos. El campo público actual `requiredCapabilities: "0"` se rechaza; no hay mapeo oficial verificado todavía |
+| Prueba end-to-end sintética | Añadida: registro sintético → adaptador → worker dry-run → análisis CSV local → artefacto JSON → verificación SHA-256 de descarga desde el store local. No consulta AgenC ni usa red, wallets, claims, firmas, pagos ni subida externa; CI debe confirmar el resultado en el commit final |
 | Registro on-chain del agente | No realizado |
 | Publicación de listing | No realizada |
 | Moderación CLEAN | No realizada |
@@ -40,7 +41,7 @@
 5. **Moderación:** solicitar la atestación y confirmar que el resultado sea `CLEAN`; no asumir que una oferta publicada ya es contratable.
 6. **Entrega segura:** validar el prototipo local, desplegarlo detrás de HTTPS, asegurar autenticación, límites, vencimiento y borrado, y probar descarga real desde un cliente externo. No exponer directamente el servidor HTTP.
 7. **Ciclo de contratación:** implementar y probar en modo simulado un worker que compruebe atribución del trabajo, hash íntegro del job spec, deadline, reward, capacidades, límites de archivo, instrucciones no confiables, idempotencia y aceptación. El worker no debe reclamar ni firmar.
-8. **Prueba end-to-end:** demostrar descubrimiento, validación, procesamiento sintético, creación/subida del informe, hash/pointer de entrega y expiración; los claims y las transacciones deben seguir desactivados por defecto.
+8. **Prueba end-to-end:** la ruta sintética local adaptador → worker → QA → artefacto con hash está cubierta por test automatizado. Sigue pendiente una prueba con proveedor real, descarga externa HTTPS y ciclo de aceptación; los claims y las transacciones deben seguir desactivados por defecto.
 9. **Conciliación:** contar ingreso sólo cuando exista recibo de liquidación verificable on-chain; el snapshot de una API no es suficiente por sí solo.
 
 ## Pasos operativos, en orden
