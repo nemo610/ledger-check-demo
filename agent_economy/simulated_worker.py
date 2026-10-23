@@ -8,11 +8,12 @@ on-chain/API fields before calling this boundary.
 from __future__ import annotations
 
 import hashlib
-import json
 import time
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Iterable
+
+from agent_economy.job_spec import JobSpecError, verify_job_spec
 
 
 class JobRejected(ValueError):
@@ -76,16 +77,11 @@ def validate_job_envelope(
         raise JobRejected("Reward must be a positive integer number of lamports")
 
     expected_hash = task.get("spec_sha256")
-    actual_hash = hashlib.sha256(spec_bytes).hexdigest()
-    if not isinstance(expected_hash, str) or expected_hash.lower() != actual_hash:
-        raise JobRejected("Job spec SHA-256 mismatch")
-
     try:
-        spec = json.loads(spec_bytes.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise JobRejected("Job spec must be valid UTF-8 JSON") from exc
-    if not isinstance(spec, dict):
-        raise JobRejected("Job spec root must be an object")
+        verified_spec = verify_job_spec(spec_bytes, expected_hash, max_bytes=max_spec_bytes)
+    except JobSpecError as exc:
+        raise JobRejected(f"Job spec verification failed: {exc}") from exc
+    spec = verified_spec["spec"]
 
     # Allow only one explicit, implemented operation. Never execute free-form
     # instructions, shell commands, URLs, code, or tool requests from the spec.
@@ -104,7 +100,7 @@ def validate_job_envelope(
         listing_id=listing_id,
         reward_lamports=int(reward_decimal),
         deadline_unix=deadline,
-        spec_sha256=actual_hash,
+        spec_sha256=verified_spec["sha256"],
         required_capabilities=tuple(sorted(set(required))),
     )
 
