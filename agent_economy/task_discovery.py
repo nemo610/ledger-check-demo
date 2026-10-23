@@ -97,6 +97,12 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
         return None
 
     gross_sol = reward_lamports / LAMPORTS_PER_SOL
+    # Official AgenC TaskView contract documents requiredCapabilities as a
+    # decimal-string u64 bitmask; the AgentCard schema explicitly defines "0"
+    # as no capability requirement. Normalize only that unambiguous case.
+    # Nonzero bitmasks remain opaque until every bit has a verified mapping.
+    raw_capabilities = task.get("requiredCapabilities")
+    normalized_capabilities = [] if raw_capabilities == "0" else raw_capabilities
     # Fee splits vary by task; gross reward is the only safe upper bound without
     # verified fee-leg fields from the live task account.
     return {
@@ -110,7 +116,7 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
         "seconds_to_deadline": deadline - now_unix,
         "job_spec_uri": spec_uri,
         "job_spec_hash": spec_hash,
-        "required_capabilities": task.get("requiredCapabilities"),
+        "required_capabilities": normalized_capabilities,
         "min_reputation": task.get("minReputation"),
         "max_workers": task.get("maxWorkers"),
         "current_workers": task.get("currentWorkers"),
