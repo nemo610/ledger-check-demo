@@ -36,8 +36,10 @@ class TaskDiscoveryTests(unittest.TestCase):
         self.assertEqual(result["gross_reward_upper_bound_sol"], "1.000000000")
         self.assertIn("not a net payout estimate", result["note"].lower())
 
-    def test_rejects_unverified_task(self):
+    def test_rejects_unverified_or_non_actionable_task(self):
         self.assertIsNone(_rank_task(task(verified=False), now_unix=NOW))
+        self.assertIsNone(_rank_task(task(actionability={"actionable": False}), now_unix=NOW))
+        self.assertIsNone(_rank_task(task(actionability=None), now_unix=NOW))
 
     def test_only_official_zero_capability_bitmask_maps_to_empty_list(self):
         zero = _rank_task(task(requiredCapabilities="0"), now_unix=NOW)
@@ -102,8 +104,8 @@ class TaskDiscoveryTests(unittest.TestCase):
         result = discover_tasks(now_unix=NOW, fetcher=fake_fetch)
         self.assertIn("/api/tasks?", seen["url"])
         self.assertIn("status=open", seen["url"])
+        self.assertIn("actionable=true", seen["url"])
         self.assertIn("pageSize=100", seen["url"])
-        self.assertNotIn("actionable=", seen["url"])
         self.assertEqual(result["candidate_count"], 1)
         self.assertFalse(result["write_operations_enabled"])
         self.assertEqual(result["claims_made"], 0)
