@@ -7,11 +7,11 @@ from agent_economy.bot_factory import ARCHETYPES, build_registry, write_registry
 
 
 class BotFactoryTests(unittest.TestCase):
-    def test_generates_one_thousand_unique_slots_by_default(self):
+    def test_generates_twelve_thousand_unique_slots_by_default(self):
         result = build_registry()
         ids = [bot["bot_id"] for bot in result["bots"]]
-        self.assertEqual(len(ids), 1000)
-        self.assertEqual(len(set(ids)), 1000)
+        self.assertEqual(len(ids), 12000)
+        self.assertEqual(len(set(ids)), 12000)
         self.assertFalse(result["live_execution_enabled"])
         self.assertEqual(result["revenue_claim"], "none")
 
@@ -27,7 +27,7 @@ class BotFactoryTests(unittest.TestCase):
         self.assertTrue(all(bot["live_execution_enabled"] is False for bot in result["bots"]))
 
     def test_invalid_counts_fail_closed(self):
-        for value in (0, 1001, -1, True, 1.5):
+        for value in (0, 12001, -1, True, 1.5):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     build_registry(count=value)
