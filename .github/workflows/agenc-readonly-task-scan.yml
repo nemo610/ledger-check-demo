@@ -1,6 +1,12 @@
 name: AgenC Read-only Task Scan
 
 on:
+  push:
+    branches: [agent-to-agent-monetization-v1]
+    paths:
+      - 'agent_economy/**'
+      - 'tests/**'
+      - '.github/workflows/agenc-readonly-task-scan.yml'
   workflow_dispatch:
   schedule:
     - cron: "17 */6 * * *"
