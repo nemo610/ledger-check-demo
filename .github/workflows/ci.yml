@@ -1,7 +1,7 @@
 name: Commission Bot CI
 on:
   push:
-    branches: [main, feature/commission-bot-mvp]
+    branches: [main, feature/commission-bot-mvp, agent-to-agent-monetization-v1]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -18,4 +18,4 @@ jobs:
       - name: Unit tests
         run: python -m unittest discover -s tests -v
       - name: CLI smoke test
-        run: python -m commission_bot --help
+        run: python -m agent_economy.cli --help
