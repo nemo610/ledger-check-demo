@@ -23,7 +23,7 @@
 | CI del commit actual | Verificado: `Commission Bot CI` y `AgenC store build preflight` finalizaron con éxito en el commit auditado. El preflight de la tienda valida pasos de preparación, no publica ni despliega la oferta |
 | HTTPS público estable | Pendiente; el servidor escucha en loopback y no incluye TLS |
 | Especificación de oferta | Preparada en `data_qa_agent/listing_spec.json` |
-| Detección pública de tareas | Cliente read-only implementado contra la forma documentada de `GET /api/tasks`; la `TaskView` omite `rewardMint`, por lo que el snapshot no prueba que la recompensa sea SOL. Se añadió `agent_economy/onchain_task_verifier.py` para lectura `getAccountInfo` por RPC HTTPS y validación del owner del programa, discriminator, estado Open, recompensa, deadline, mint y bitmask de capacidades. La lectura es sólo una capa de verificación; todavía no está conectada al CLI/worker, no verifica la derivación canónica de PDA ni prueba `jobSpecHash` on-chain, y rechaza capacidades no nulas. No habilitar contratación live hasta completar esas verificaciones y probar con una tarea real |
+| Detección y auditoría pública de tareas | `task_discovery.py` conserva tareas con mint omitido como candidatas de auditoría con denominación desconocida, marcadas siempre `actionable=false`; rechaza mints explícitos no nulos. `live_task_audit.py` integra discovery + RPC read-only + comparación de reward/deadline + descarga HTTPS limitada y comprobación SHA-256 del spec. CLI: `python -m agent_economy.live_task_audit --rpc-url "$SOLANA_RPC_URL"`. Si no hay RPC, deja los candidatos sin verificar. Incluso con cuenta/spec coincidentes, el resultado sigue no accionable porque la derivación canónica PDA y el vínculo on-chain del hash/spec aún no están probados. No habilitar contratación live hasta cerrar estas brechas y revisar una tarea real |
 | Adaptador fail-closed discovery → worker simulado | Implementado con tests sintéticos; exige registro normalizado independiente, atribución explícita, coincidencia de recompensa/deadline/hash y capacidades como lista. Hash reforzado a SHA-256 hexadecimal y IDs configurados como strings no vacíos. Schema oficial verificado: `requiredCapabilities` es un bitmask u64 decimal y `"0"` significa sin requisito, por lo que se normaliza a `[]`. Los bitmasks no nulos siguen opacos y se rechazan hasta mapear cada bit con el protocolo oficial |
 | Prueba end-to-end sintética | Añadida: registro sintético → adaptador → worker dry-run → análisis CSV local → artefacto JSON → verificación SHA-256 de descarga desde el store local. No consulta AgenC ni usa red, wallets, claims, firmas, pagos ni subida externa; CI debe confirmar el resultado en el commit final |
 | Registro on-chain del agente | No realizado |
@@ -47,15 +47,16 @@
 ## Pasos operativos, en orden
 
 1. Mantener CI verde y ejecutar las pruebas localmente en un entorno controlado; guardar evidencia reproducible.
-2. Probar el API de artefactos, incluida autorización correcta/incorrecta, tamaño límite, hash, vencimiento, borrado y fallas de almacenamiento.
-3. Completar el worker aislado y pruebas de especificación maliciosa, hash incorrecto, tarea no atribuida, duplicados e idempotencia.
-4. Ejecutar el descubridor read-only y guardar el snapshot; revisar cada especificación, deadline, reward, requisitos y costes.
-5. Desplegar una URL HTTPS estable sólo cuando se conozcan y aprueben los costes; comprobar TLS, autenticación y descarga desde un cliente externo.
-6. Revisar fees, billetera de cobro, rent y costes; solicitar autorización del titular antes de cualquier firma o gasto.
-7. Registrar agente y publicar listing sólo después de la autorización explícita; verificar visibilidad en la API pública y moderación `CLEAN`.
-8. Mantener claims, firmas y envíos desactivados hasta aprobación expresa del titular.
-9. Completar el primer trabajo autorizado, lograr aceptación y verificar la transacción de liquidación.
-10. Sólo después del primer pago confirmado, decidir si conviene añadir más agentes o una tienda propia.
+2. Ejecutar `python -m agent_economy.live_task_audit --out output/agenc_live_task_audit.json` para snapshot read-only. Para verificación RPC, proporcionar `SOLANA_RPC_URL` desde el entorno o `--rpc-url`; no guardar endpoints con tokens en logs ni en GitHub. Inspeccionar los motivos de rechazo y la cantidad de candidatas. Esta herramienta nunca reclama tareas ni habilita ejecución.
+3. Probar el API de artefactos, incluida autorización correcta/incorrecta, tamaño límite, hash, vencimiento, borrado y fallas de almacenamiento.
+4. Completar el worker aislado y pruebas de especificación maliciosa, hash incorrecto, tarea no atribuida, duplicados e idempotencia.
+5. Ejecutar el descubridor/auditor read-only y guardar el snapshot; revisar cada especificación, deadline, reward, requisitos y costes.
+6. Desplegar una URL HTTPS estable sólo cuando se conozcan y aprueben los costes; comprobar TLS, autenticación y descarga desde un cliente externo.
+7. Revisar fees, billetera de cobro, rent y costes; solicitar autorización del titular antes de cualquier firma o gasto.
+8. Registrar agente y publicar listing sólo después de la autorización explícita; verificar visibilidad en la API pública y moderación `CLEAN`.
+9. Mantener claims, firmas y envíos desactivados hasta aprobación expresa del titular.
+10. Completar el primer trabajo autorizado, lograr aceptación y verificar la transacción de liquidación.
+11. Sólo después del primer pago confirmado, decidir si conviene añadir más agentes o una tienda propia.
 
 ## Fuentes oficiales a revalidar el día del lanzamiento
 
