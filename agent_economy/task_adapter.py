@@ -8,6 +8,7 @@ official schema before this can be used against live task data.
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
+import re
 from typing import Any
 
 from agent_economy.simulated_worker import JobRejected
@@ -28,8 +29,9 @@ def normalize_candidate_for_dry_run(
     """
     if not isinstance(candidate, dict) or not isinstance(provider_record, dict):
         raise JobRejected("Candidate and normalized provider record must be objects")
-    if not expected_agent_id or not expected_listing_id:
-        raise JobRejected("Configured agent and listing IDs are required")
+    if (not isinstance(expected_agent_id, str) or not expected_agent_id.strip()
+            or not isinstance(expected_listing_id, str) or not expected_listing_id.strip()):
+        raise JobRejected("Configured agent and listing IDs must be non-empty strings")
 
     task_id = provider_record.get("task_id")
     if not isinstance(task_id, str) or not task_id.strip() or candidate.get("task_id") != task_id:
@@ -49,8 +51,8 @@ def normalize_candidate_for_dry_run(
         raise JobRejected("Provider deadline must be an integer Unix timestamp")
     if isinstance(reward, bool) or not isinstance(reward, int) or reward <= 0:
         raise JobRejected("Provider reward must be a positive integer number of lamports")
-    if not isinstance(spec_hash, str) or len(spec_hash) != 64:
-        raise JobRejected("Provider spec hash is missing or malformed")
+    if not isinstance(spec_hash, str) or not re.fullmatch(r"[a-fA-F0-9]{64}", spec_hash):
+        raise JobRejected("Provider spec hash must be a 64-character SHA-256 hex digest")
     if not isinstance(caps, list) or any(not isinstance(x, str) or not x for x in caps):
         raise JobRejected("Capabilities must be an explicit list of non-empty strings")
 
