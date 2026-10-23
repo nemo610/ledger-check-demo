@@ -1,0 +1,60 @@
+name: AgenC HTTPS endpoint smoke test
+on:
+  push:
+    branches: [agenc-endpoint-worker-foundation]
+    paths:
+      - 'agent_economy/http_service.py'
+      - '.github/workflows/agenc-endpoint-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify public HTTPS health endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://agenc-nemo-agent-endpoint.onrender.com"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error "$BASE/health" -o /tmp/health.json
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/health.json', encoding='utf-8'))
+          assert p.get('ok') is True, p
+          assert p.get('service') == 'agenc-agent-endpoint', p
+          print('PASS: public HTTPS /health')
+          PY
+      - name: Verify public manifest does not overstate readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://agenc-nemo-agent-endpoint.onrender.com"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error "$BASE/manifest.json" -o /tmp/manifest.json
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/manifest.json', encoding='utf-8'))
+          assert p.get('protocol') == 'agenc', p
+          assert p.get('endpoint_status') == 'online', p
+          assert p.get('registration_status') == 'not_verified', p
+          assert p.get('worker_enabled') is False, p
+          assert p.get('signing_enabled') is False, p
+          assert p.get('settlement_verified') is False, p
+          print('PASS: manifest is reachable and truthful about disabled on-chain capabilities')
+          PY
+      - name: Verify readiness stays blocked until registration is proven
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://agenc-nemo-agent-endpoint.onrender.com"
+          code="$(curl --proto '=https' --tlsv1.2 --silent --show-error -o /tmp/ready.json -w '%{http_code}' "$BASE/ready")"
+          test "$code" = "503"
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/ready.json', encoding='utf-8'))
+          assert p.get('ready') is False, p
+          assert p.get('registration_status') == 'not_verified', p
+          assert p.get('worker_enabled') is False, p
+          print('PASS: /ready correctly returns 503 until registration and signer policy are verified')
+          PY
