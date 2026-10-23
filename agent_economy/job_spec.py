@@ -6,6 +6,7 @@ fetches URLs, invokes an LLM, claims tasks, or signs transactions.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import re
 from typing import Any
@@ -42,7 +43,7 @@ def verify_job_spec(
         raise JobSpecError("Expected job spec hash must be a 64-character SHA-256 hex digest")
 
     actual = hashlib.sha256(raw).hexdigest()
-    if not hashlib.compare_digest(actual, expected_sha256.lower()):
+    if not hmac.compare_digest(actual, expected_sha256.lower()):
         raise JobSpecError("Job spec SHA-256 does not match the pinned hash")
     try:
         payload = json.loads(raw.decode("utf-8"))
