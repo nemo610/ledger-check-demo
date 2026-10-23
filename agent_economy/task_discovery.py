@@ -79,11 +79,8 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
         return None
     if not isinstance(spec_hash, str) or not re.fullmatch(r"[a-fA-F0-9]{64}", spec_hash):
         return None
-    try:
-        actionability = task.get("actionability", {})
-        if isinstance(actionability, dict) and actionability.get("actionable") is False:
-            return None
-    except AttributeError:
+    actionability = task.get("actionability")
+    if not isinstance(actionability, dict) or actionability.get("actionable") is not True:
         return None
 
     gross_sol = reward_lamports / LAMPORTS_PER_SOL
