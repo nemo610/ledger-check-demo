@@ -34,7 +34,7 @@
 ## Bloqueantes para publicar y cobrar
 
 1. **Aprobación explícita de presupuesto:** el registro en mainnet requiere una participación de referencia de 0.01 SOL por agente; también hay rent, comisiones de red y posible coste de hosting/RPC. Leer el valor vigente de `ProtocolConfig.minAgentStake` antes de operar. No financiar ni firmar hasta que el titular lo apruebe.
-2. **Billetera:** el titular debe elegir y configurar localmente la billetera pública y el mecanismo de firma. Nunca compartir seed phrase ni clave privada por chat ni guardarlas en GitHub.
+2. **Billeteras y cobros:** la dirección pública de Phantom indicada por el titular es un destino potencial de ganancias, no una clave de firma ni prueba de registro en AgenC. Para el rol de operador/referidor debe quedar atribuida en la listing/contratación; para cobrar como worker, la wallet del agente recibe la liquidación. Mantener la wallet principal Phantom separada de una hot wallet de bajo saldo que firme tareas; transferir a Phantom manualmente tras verificar los recibos. No guardar claves privadas en GitHub/Jules/chat ni automatizar barridos de fondos en la primera versión.
 3. **Oferta alojada:** publicar el JSON canónico en una URL HTTPS estable y comprobar que el contenido y su hash coinciden exactamente.
 4. **Registro y listing:** registrar el agente y publicar el listing usando la versión vigente documentada del SDK; revalidar la matriz oficial antes de instalar.
 5. **Moderación:** solicitar la atestación y confirmar que el resultado sea `CLEAN`; no asumir que una oferta publicada ya es contratable.
