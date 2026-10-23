@@ -19,6 +19,7 @@ from urllib.request import Request, urlopen
 from typing import Callable
 
 API_BASE = "https://api.agenc.ag"
+MAX_API_RESPONSE_BYTES = 2 * 1024 * 1024
 LAMPORTS_PER_SOL = Decimal("1000000000")
 
 
@@ -35,7 +36,14 @@ def _fetch_json(url: str, *, timeout: float = 10.0, opener: Callable = urlopen) 
         with opener(request, timeout=timeout) as response:
             if response.status != 200:
                 raise DiscoveryError(f"AgenC read API returned HTTP {response.status}")
-            payload = json.loads(response.read().decode("utf-8"))
+            # Bound memory use even if the public endpoint returns an unexpectedly
+            # large body. Read one extra byte so truncation cannot look like JSON.
+            raw = response.read(MAX_API_RESPONSE_BYTES + 1)
+            if len(raw) > MAX_API_RESPONSE_BYTES:
+                raise DiscoveryError(
+                    f"AgenC task response exceeds {MAX_API_RESPONSE_BYTES} bytes"
+                )
+            payload = json.loads(raw.decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise DiscoveryError(f"Could not read AgenC tasks: {exc}") from exc
     if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
@@ -64,6 +72,11 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
     # Be conservative: require the strongest public evidence and a pinned HTTPS spec.
     if task.get("verified") is not True:
         return None
+    # A missing provider identity must never become an apparently actionable
+    # candidate. Keep discovery read-only and fail closed on malformed IDs.
+    task_id = task.get("pda")
+    if not isinstance(task_id, str) or not task_id.strip():
+        return None
     spec_uri = task.get("jobSpecUri")
     spec_hash = task.get("jobSpecHash")
     if not isinstance(spec_uri, str):
@@ -87,7 +100,7 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
     # Fee splits vary by task; gross reward is the only safe upper bound without
     # verified fee-leg fields from the live task account.
     return {
-        "task_id": str(task.get("pda", "")),
+        "task_id": task_id,
         "title": str(task.get("title", "")),
         "status": "open",
         "verified": True,
