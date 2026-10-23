@@ -1,0 +1,13 @@
+services:
+  - type: cron
+    name: agenc-readonly-monitor
+    runtime: docker
+    plan: starter
+    region: oregon
+    branch: agent-to-agent-monetization-v1
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python -m agent_economy.monitor
+    schedule: "0 */6 * * *"
+    envVars:
+      - key: AGENC_WALLET
+        sync: false
