@@ -24,7 +24,7 @@
 | HTTPS público estable | Pendiente; el servidor escucha en loopback y no incluye TLS |
 | Especificación de oferta | Preparada en `data_qa_agent/listing_spec.json` |
 | Detección pública de tareas | Cliente read-only implementado; consulta real todavía pendiente de ejecución desde un entorno con acceso a la API; filtra tareas y exige URL HTTPS y hash SHA-256 del job spec |
-| Validación y ejecución segura de job specs en un worker aislado | Pendiente; no se debe tratar una tarea descubierta como autorizada para ejecutar |
+| Adaptador fail-closed discovery → worker simulado | Implementado con tests sintéticos; exige registro normalizado independiente, atribución explícita, coincidencia de recompensa/deadline/hash y capacidades como lista. El campo público actual `requiredCapabilities: "0"` se rechaza; no hay mapeo oficial verificado todavía |
 | Registro on-chain del agente | No realizado |
 | Publicación de listing | No realizada |
 | Moderación CLEAN | No realizada |
