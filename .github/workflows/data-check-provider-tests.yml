@@ -18,3 +18,40 @@ jobs:
           python-version: "3.12"
       - name: Run provider unit tests
         run: python -m unittest discover -s tests -p "test_provider_service.py" -v
+      - name: Smoke-test deployed HTTPS API
+        env:
+          DATA_CHECK_URL: https://data-check-agentbazaar.onrender.com
+        run: |
+          python - <<'PY'
+          import json, os, time, urllib.error, urllib.request
+          base = os.environ["DATA_CHECK_URL"].rstrip("/")
+          last_error = None
+          for attempt in range(18):
+              try:
+                  with urllib.request.urlopen(base + "/health", timeout=10) as response:
+                      health = json.loads(response.read().decode("utf-8"))
+                  if health.get("marketplace_webhook") is not True:
+                      raise RuntimeError("health response missing marketplace_webhook=true")
+                  payload = {
+                      "task": "CI smoke test; synthetic CSV only",
+                      "payload": {"filename": "ci.csv", "format": "csv", "content": "id,name\\n1,Ada\\n"}
+                  }
+                  request = urllib.request.Request(
+                      base + "/", data=json.dumps(payload).encode("utf-8"),
+                      headers={"Content-Type": "application/json", "Accept": "application/json"},
+                      method="POST"
+                  )
+                  with urllib.request.urlopen(request, timeout=10) as response:
+                      result = json.loads(response.read().decode("utf-8"))
+                  assert result.get("task_status") == "completed", result
+                  assert result.get("result", {}).get("valid") is True, result
+                  assert result.get("result", {}).get("stored") is False, result
+                  print("PASS: live HTTPS health + synthetic webhook validation")
+                  break
+              except Exception as exc:
+                  last_error = exc
+                  if attempt == 17:
+                      raise
+                  print(f"Deployment not ready or smoke failed (attempt {attempt + 1}/18): {exc}")
+                  time.sleep(10)
+          PY
