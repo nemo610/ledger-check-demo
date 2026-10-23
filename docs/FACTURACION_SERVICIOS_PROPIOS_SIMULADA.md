@@ -25,7 +25,7 @@ El cálculo se rechaza o deja sin cargo cuando hay política deshabilitada/ambig
 ## Ejecutar pruebas
 
 ```bash
-python -m unittest tests.test_first_party_billing -v
+python -m unittest discover -s tests -p 'test_first_party_billing.py' -v
 python -m unittest discover -s tests -v
 ```
 
