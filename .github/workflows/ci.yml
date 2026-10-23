@@ -19,3 +19,5 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: CLI smoke test
         run: python -m agent_economy.cli --help
+      - name: Build deployment container
+        run: docker build -t agenc-readonly-monitor:test .
