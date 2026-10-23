@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 from pathlib import Path
-from typing import Iterable
 
 
 @dataclass(frozen=True)
@@ -29,16 +28,16 @@ ARCHETYPES: tuple[BotArchetype, ...] = (
 )
 
 
-def build_registry(count: int = 1000) -> dict:
-    """Build deterministic logical bot slots; never activates live execution."""
-    if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 1000:
-        raise ValueError("count must be an integer between 1 and 1000")
+def build_registry(count: int = 12000) -> dict:
+    """Build logical bot slots; live execution is never enabled by this registry."""
+    if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 12000:
+        raise ValueError("count must be an integer between 1 and 12000")
 
     bots = []
     for index in range(1, count + 1):
         archetype = ARCHETYPES[(index - 1) % len(ARCHETYPES)]
         bots.append({
-            "bot_id": f"commission-bot-{index:04d}",
+            "bot_id": f"commission-bot-{index:05d}",
             "role": archetype.role,
             "purpose": archetype.purpose,
             "revenue_model": "third_party_commission",
@@ -56,14 +55,14 @@ def build_registry(count: int = 1000) -> dict:
         "revenue_claim": "none",
         "live_execution_enabled": False,
         "safety_note": (
-            "Bot slots are configurations, not deployed workers or guaranteed income. "
+            "These are logical configurations, not deployed workers or guaranteed income. "
             "Do not create fake accounts, spam, self-refer, or bypass provider rules."
         ),
         "bots": bots,
     }
 
 
-def write_registry(path: str, count: int = 1000) -> dict:
+def write_registry(path: str, count: int = 12000) -> dict:
     registry = build_registry(count=count)
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -74,8 +73,8 @@ def write_registry(path: str, count: int = 1000) -> dict:
 def main() -> int:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Generate commission-bot registry (disabled by default).")
-    parser.add_argument("--count", type=int, default=1000, help="Logical bot slots, 1–1000 (default: 1000).")
+    parser = argparse.ArgumentParser(description="Generate up to 12,000 logical commission-bot slots.")
+    parser.add_argument("--count", type=int, default=12000, help="Logical bot slots, 1–12000 (default: 12000).")
     parser.add_argument("--out", default="output/bot_registry.json", help="Output JSON path.")
     args = parser.parse_args()
     result = write_registry(args.out, args.count)
