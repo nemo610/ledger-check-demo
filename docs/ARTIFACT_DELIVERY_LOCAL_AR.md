@@ -8,7 +8,7 @@ La API autenticada de artefactos está implementada como prototipo en `data_qa_a
 - Exige `Authorization: Bearer <token>` para subir, consultar y borrar artefactos.
 - Rechaza tokens de configuración demasiado cortos, JSON inválido, esquemas incorrectos y archivos por encima del límite.
 - Genera IDs aleatorios no predecibles y calcula el SHA-256 del contenido canónico en el servidor.
-- Devuelve una ruta relativa, tamaño, hash y vencimiento; el vencimiento por defecto es 24 horas.
+- Devuelve una ruta autenticada, un enlace de descarga firmado de corta duración, tamaño, hash y vencimiento; el vencimiento por defecto es 24 horas. El enlace firmado permite que el comprador descargue el informe sin recibir el token de subida.
 - Permite borrar un artefacto y limpiar vencidos.
 - No registra encabezados de autorización ni contenido de artefactos.
 - Por defecto escucha sólo en `127.0.0.1`, no en una interfaz pública.
@@ -24,11 +24,11 @@ export ARTIFACT_TTL_SECONDS=86400
 python3 -m data_qa_agent.artifact_server
 ```
 
-La API escucha en `127.0.0.1:8080` salvo que se configure otro host/puerto. El servicio no incluye TLS. No configures `ARTIFACT_BIND_HOST=0.0.0.0` para exponerlo directamente a internet.
+La API escucha en `127.0.0.1:8080` salvo que se configure otro host/puerto. El servicio no incluye TLS. Los enlaces firmados sólo son seguros para compartir mediante HTTPS; no los envíes por canales inseguros. No configures `ARTIFACT_BIND_HOST=0.0.0.0` para exponerlo directamente a internet.
 
 ## Endpoints
 - `POST /v1/artifacts`: recibe el cuerpo JSON del informe.
-- `GET /v1/artifacts/{artifact_id}`: recupera un artefacto no vencido.
+- `GET /v1/artifacts/{artifact_id}`: recupera un artefacto no vencido con bearer token o con el enlace firmado devuelto al subir.
 - `DELETE /v1/artifacts/{artifact_id}`: elimina un artefacto.
 
 Todas las rutas requieren token bearer. En producción, un proxy HTTPS administrado debe terminar TLS, aplicar límites de conexiones/tiempo, restringir acceso y proteger el origen. El cliente del marketplace debe construir la URL pública HTTPS a partir de una URL de despliegue verificada; no se debe publicar la ruta relativa como si ya fuera accesible.
