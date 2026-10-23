@@ -54,7 +54,12 @@ def _rank_task(task: dict, *, now_unix: int) -> dict | None:
         deadline = int(task.get("deadlineUnix", 0))
     except (InvalidOperation, ValueError, TypeError):
         return None
-    if not reward_lamports.is_finite() or reward_lamports <= 0 or deadline <= now_unix:
+    if (
+        not reward_lamports.is_finite()
+        or reward_lamports <= 0
+        or reward_lamports != reward_lamports.to_integral_value()
+        or deadline <= now_unix
+    ):
         return None
     # Be conservative: require the strongest public evidence and a pinned HTTPS spec.
     if task.get("verified") is not True:
@@ -119,7 +124,8 @@ def discover_tasks(*, page_size: int = 100, timeout: float = 10.0,
         summary = _rank_task(task, now_unix=now)
         if summary is not None:
             ranked.append(summary)
-    ranked.sort(key=lambda item: (Decimal(item["gross_reward_upper_bound_sol"]), item["seconds_to_deadline"]), reverse=True)
+    # Prefer higher gross rewards, then the nearest deadline; never rank urgency backwards.
+    ranked.sort(key=lambda item: (-Decimal(item["gross_reward_upper_bound_sol"]), item["seconds_to_deadline"]))
     return {
         "provider": "agenc",
         "mode": "read_only",
