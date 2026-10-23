@@ -19,9 +19,9 @@
 | --- | --- |
 | Worker local CSV/JSON | Implementado en el repositorio |
 | Generación de informe con hash | Implementada; límites locales de tamaño y escritura atómica |
-| API de artefactos con bearer token, tamaño limitado, hash calculado por servidor y TTL | Prototipo local implementado; requiere validación de CI y pruebas HTTP |
+| API de artefactos con bearer token, tamaño limitado, hash calculado por servidor, TTL y enlace firmado temporal | Prototipo local; CI verde con pruebas HTTP/auth/hash/enlace firmado |
 | HTTPS público estable | Pendiente; el servidor escucha en loopback y no incluye TLS |
-| Pruebas automatizadas en CI | El CI anterior estuvo en verde; falta confirmar una ejecución que incluya los últimos commits |
+| Pruebas automatizadas en CI | CI verde: 56 tests y build Docker OK en commit `5490ad8131b852b3e568444638780048095f47fa` |
 | Especificación de oferta | Preparada en `data_qa_agent/listing_spec.json` |
 | Detección pública de tareas | Cliente read-only implementado; consulta real todavía pendiente de ejecución desde un entorno con acceso a la API |
 | Registro on-chain del agente | No realizado |
