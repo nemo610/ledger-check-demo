@@ -17,7 +17,7 @@ from data_qa_agent.core import inspect_file
 NOW = 2_000_000_000
 AGENT = "agent-synthetic-e2e"
 LISTING = "listing-synthetic-e2e"
-CAPABILITIES = ["csv.inspect"]
+CAPABILITIES = []
 
 
 class SyntheticAgentEndToEndTests(unittest.TestCase):
