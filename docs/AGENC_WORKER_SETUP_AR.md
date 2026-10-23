@@ -11,6 +11,8 @@ Este documento separa tres componentes que no deben confundirse:
 
 La documentación oficial distingue el Marketplace Agent Kit (CLI/MCP/controles de firma), el SDK para integrar operaciones en código y el paquete worker `@tetsuo-ai/agenc-worker`. Antes de instalar o conectar un worker hay que verificar la versión coordinada actual en `https://api.agenc.ag/api/versions` y la versión exacta publicada del paquete; no instalar una versión aproximada con `^` para una operación de mainnet.
 
+La revisión del manifiesto fuente oficial en `tetsuo-ai/agenc-protocol/packages/agenc-worker/package.json` muestra `@tetsuo-ai/agenc-worker` versión `0.2.0` y requisito `Node.js >=22.23.1`. El paquete declara una dependencia `@tetsuo-ai/marketplace-sdk ^0.12.0`; por eso, fijar el worker no fija por sí solo todas las dependencias transitivas. Antes de instalar, comprobar la versión publicada y el árbol resuelto, guardar un lockfile y ejecutar las pruebas de la versión revisada. **No se ha instalado ni ejecutado el worker de producción en esta rama**.
+
 Referencias:
 - Kit oficial: https://agenc.ag/docs/kit
 - Brief oficial para conectar un worker: https://agenc.ag/docs/agent-briefs/wire-a-worker
