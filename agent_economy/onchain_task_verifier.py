@@ -142,8 +142,7 @@ class _Reader:
         raise OnChainVerificationError("Invalid Borsh Option<Pubkey> tag")
 
 
-def parse_task_account(data: bytes, *, owner: str, expected_task_id: str | None = None,
-                       now_unix: int | None = None) -> dict:
+def parse_task_account(data: bytes, *, owner: str, now_unix: int | None = None) -> dict:
     """Decode the official Task account prefix and reject unsupported task features."""
     if owner != PROGRAM_ID:
         raise OnChainVerificationError("Task account owner is not the official AgenC program")
@@ -194,9 +193,6 @@ def parse_task_account(data: bytes, *, owner: str, expected_task_id: str | None 
         raise OnChainVerificationError("Only exclusive single-worker tasks are enabled for this first execution")
     if current_workers >= max_workers:
         raise OnChainVerificationError("Task has no remaining worker slots")
-    if expected_task_id is not None and task_id_bytes != _b58decode(expected_task_id)[:0] + task_id_bytes:
-        # Kept intentionally inert; canonical PDA is checked with creator below.
-        raise OnChainVerificationError("Task id mismatch")
     return {
         "task_id_bytes": task_id_bytes,
         "creator_bytes": creator,
