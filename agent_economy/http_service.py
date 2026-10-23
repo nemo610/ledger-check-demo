@@ -1,29 +1,28 @@
-"""Minimal public health and capability endpoint for AgenC registration.
-
-This service deliberately does not sign Solana transactions or claim tasks.
-Registration and money-moving actions remain disabled until the owner configures
-a signer locally and approves each exact transaction.
+"""AgenC HTTPS endpoint with health/manifest routes and CSV/JSON validation.
+Registration, signing, task claiming, and settlement remain disabled until verified.
 """
 from __future__ import annotations
 
 import json
 import os
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
+from agent_economy.provider_service import MAX_CONTENT_BYTES, validate_payload
 
 AGENT_NAME = os.environ.get("AGENC_AGENT_NAME", "Nemo Agent")
 AGENT_DESCRIPTION = os.environ.get(
     "AGENC_AGENT_DESCRIPTION",
-    "General-purpose AI agent in staged integration; on-chain actions require owner approval.",
+    "CSV/JSON data validation service; on-chain actions require owner approval.",
 )
 PUBLIC_WALLET = os.environ.get("AGENC_PUBLIC_WALLET", "").strip()
-CAPABILITIES = ["compute", "research", "code-review", "data-processing"]
+CAPABILITIES = ["compute", "research", "code-review", "data-processing", "csv-json-validation"]
+MAX_BODY_BYTES = 256 * 1024
 
 
 def payload(path: str) -> tuple[int, dict]:
-    if path == "/health" or path == "/healthz":
+    if path in ("/health", "/healthz"):
         return 200, {
             "ok": True,
             "service": "agenc-agent-endpoint",
@@ -49,11 +48,19 @@ def payload(path: str) -> tuple[int, dict]:
                 "task_claiming_enabled": False,
                 "result_submission_enabled": False,
             },
+            "service_api": {
+                "validation_endpoint": "/v1/validate",
+                "method": "POST",
+                "content_type": "application/json",
+                "max_content_bytes": MAX_CONTENT_BYTES,
+                "stores_uploads": False,
+                "performs_payments": False,
+            },
             "next_steps": [
                 "Verify the HTTPS endpoint publicly",
                 "Read live protocol configuration and minimum stake",
-                "Register the agent with explicit owner-approved transaction",
-                "Enable a bounded worker only after signer policy and tests pass",
+                "Register the agent with an explicit owner-approved transaction",
+                "Verify the commercial listing and settlement flow before claiming revenue",
             ],
         }
     if path == "/ready":
@@ -67,11 +74,9 @@ def payload(path: str) -> tuple[int, dict]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "NemoAgenCEndpoint/0.1"
+    server_version = "NemoAgenCEndpoint/0.2"
 
-    def do_GET(self) -> None:  # noqa: N802
-        path = urlsplit(self.path).path
-        status, data = payload(path)
+    def _send_json(self, status: int, data: dict) -> None:
         body = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -81,8 +86,40 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_GET(self) -> None:  # noqa: N802
+        status, data = payload(urlsplit(self.path).path)
+        self._send_json(status, data)
+
+    def do_POST(self) -> None:  # noqa: N802
+        if urlsplit(self.path).path != "/v1/validate":
+            self._send_json(404, {"error": "not_found"})
+            return
+        if "application/json" not in self.headers.get("Content-Type", "").lower():
+            self._send_json(415, {"error": "content_type_must_be_application_json"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self._send_json(400, {"error": "invalid_content_length"})
+            return
+        if length < 1 or length > MAX_BODY_BYTES:
+            self._send_json(413 if length > MAX_BODY_BYTES else 400, {
+                "error": "body_size_out_of_range",
+                "max_body_bytes": MAX_BODY_BYTES,
+            })
+            return
+        try:
+            request_data = json.loads(self.rfile.read(length).decode("utf-8"))
+            result = validate_payload(request_data)
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            self._send_json(400, {"error": "invalid_request", "message": str(exc)})
+            return
+        except OverflowError as exc:
+            self._send_json(413, {"error": "content_too_large", "message": str(exc)})
+            return
+        self._send_json(200, result)
+
     def log_message(self, fmt: str, *args) -> None:
-        # Avoid logging query strings or any accidental user-provided values.
         print("%s - %s" % (self.address_string(), fmt % args))
 
 
