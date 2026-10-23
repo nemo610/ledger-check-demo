@@ -74,12 +74,18 @@ class TaskDiscoveryTests(unittest.TestCase):
         self.assertIsNone(_rank_task(task(rewardLamports="0"), now_unix=NOW))
         self.assertIsNone(_rank_task(task(rewardLamports="1.5"), now_unix=NOW))
 
-    def test_requires_explicit_sol_denomination_evidence(self):
+    def test_unknown_denomination_is_retained_but_never_actionable(self):
         missing_mint = task()
         del missing_mint["rewardMint"]
-        self.assertIsNone(_rank_task(missing_mint, now_unix=NOW))
+        result = _rank_task(missing_mint, now_unix=NOW)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["denomination"], "sol_unconfirmed")
+        self.assertTrue(result["onchain_verification_required"])
+        self.assertFalse(result["actionable"])
         self.assertIsNone(_rank_task(task(rewardMint="some-token"), now_unix=NOW))
-        self.assertIsNotNone(_rank_task(task(rewardMint=None), now_unix=NOW))
+        explicit_null = _rank_task(task(rewardMint=None), now_unix=NOW)
+        self.assertEqual(explicit_null["denomination"], "sol_api_claimed")
+        self.assertFalse(explicit_null["actionable"])
 
     def test_rejects_missing_https_spec_or_hash(self):
         self.assertIsNone(_rank_task(task(jobSpecUri="http://example.org/spec"), now_unix=NOW))
