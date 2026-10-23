@@ -17,17 +17,18 @@
 
 | Componente | Estado |
 | --- | --- |
-| Worker local CSV/JSON | Implementado en el repositorio |
+| Worker local CSV/JSON | Implementado en el repositorio; no está conectado a un ciclo real de contratación |
 | Generación de informe con hash | Implementada; límites locales de tamaño y escritura atómica |
-| API de artefactos con bearer token, tamaño limitado, hash calculado por servidor, TTL y enlace firmado temporal | Prototipo local; CI verde con pruebas HTTP/auth/hash/enlace firmado |
+| API de artefactos con bearer token, tamaño limitado, hash calculado por servidor, TTL y enlace firmado temporal | Prototipo local; incluye pruebas unitarias y HTTP en CI |
+| CI del commit actual | Verificado: `Commission Bot CI` y `AgenC store build preflight` finalizaron con éxito en el commit auditado. El preflight de la tienda valida pasos de preparación, no publica ni despliega la oferta |
 | HTTPS público estable | Pendiente; el servidor escucha en loopback y no incluye TLS |
-| Pruebas automatizadas en CI | Los últimos resultados verdes confirmados corresponden a commits anteriores; los cambios de endurecimiento más recientes aún requieren una ejecución CI verificable |
 | Especificación de oferta | Preparada en `data_qa_agent/listing_spec.json` |
-| Detección pública de tareas | Cliente read-only implementado; consulta real todavía pendiente de ejecución desde un entorno con acceso a la API; valida HTTPS y hash SHA-256 del job spec |
+| Detección pública de tareas | Cliente read-only implementado; consulta real todavía pendiente de ejecución desde un entorno con acceso a la API; filtra tareas y exige URL HTTPS y hash SHA-256 del job spec |
+| Validación y ejecución segura de job specs en un worker aislado | Pendiente; no se debe tratar una tarea descubierta como autorizada para ejecutar |
 | Registro on-chain del agente | No realizado |
 | Publicación de listing | No realizada |
 | Moderación CLEAN | No realizada |
-| Bucle de ejecución con firma | Deshabilitado/no implementado como proceso operativo |
+| Claims, firmas y envíos de entrega | Deshabilitados/no implementados como proceso operativo |
 | Contrato, liquidación e ingresos | Ninguno demostrado |
 
 ## Bloqueantes para publicar y cobrar
@@ -36,22 +37,24 @@
 2. **Billetera:** el titular debe elegir y configurar localmente la billetera pública y el mecanismo de firma. Nunca compartir seed phrase ni clave privada por chat ni guardarlas en GitHub.
 3. **Oferta alojada:** publicar el JSON canónico en una URL HTTPS estable y comprobar que el contenido y su hash coinciden exactamente.
 4. **Registro y listing:** registrar el agente y publicar el listing usando la versión vigente documentada del SDK; revalidar la matriz oficial antes de instalar.
-5. **Moderación:** solicitar la atestación y confirmar que el resultado sea `clean`; no asumir que una oferta publicada ya es contratable.
-6. **Entrega segura:** validar el prototipo local, desplegarlo detrás de HTTPS, asegurar la autenticación, límites, vencimiento y borrado, y probar descarga real desde fuera del entorno local. No exponer directamente el servidor HTTP.
-7. **Ciclo de contratación:** probar en entorno de ensayo o con un trabajo autorizado el descubrimiento de hires propios, verificación del hash del job spec, claim, ejecución aislada, alojamiento del artefacto, envío del hash y aceptación por el comprador.
-8. **Conciliación:** contar ingreso sólo cuando exista recibo de liquidación verificable on-chain; el snapshot de una API no es suficiente por sí solo.
+5. **Moderación:** solicitar la atestación y confirmar que el resultado sea `CLEAN`; no asumir que una oferta publicada ya es contratable.
+6. **Entrega segura:** validar el prototipo local, desplegarlo detrás de HTTPS, asegurar autenticación, límites, vencimiento y borrado, y probar descarga real desde un cliente externo. No exponer directamente el servidor HTTP.
+7. **Ciclo de contratación:** implementar y probar en modo simulado un worker que compruebe atribución del trabajo, hash íntegro del job spec, deadline, reward, capacidades, límites de archivo, instrucciones no confiables, idempotencia y aceptación. El worker no debe reclamar ni firmar.
+8. **Prueba end-to-end:** demostrar descubrimiento, validación, procesamiento sintético, creación/subida del informe, hash/pointer de entrega y expiración; los claims y las transacciones deben seguir desactivados por defecto.
+9. **Conciliación:** contar ingreso sólo cuando exista recibo de liquidación verificable on-chain; el snapshot de una API no es suficiente por sí solo.
 
 ## Pasos operativos, en orden
 
-1. Ejecutar las pruebas del repositorio y una muestra sintética de CSV y JSON; confirmar CI tras los commits recientes.
-2. Probar localmente el API de artefactos, incluida autorización correcta/incorrecta, tamaño límite, hash, vencimiento y borrado.
-3. Ejecutar el descubridor read-only y guardar el snapshot; revisar cada especificación, deadline, reward, requisitos y costes.
-4. Desplegar una URL HTTPS estable sólo cuando se conozcan y aprueben los costes; comprobar TLS, autenticación y descarga desde un cliente externo.
-5. Revisar fees, wallet de cobro, rent y costes; solicitar autorización del titular antes de cualquier firma o gasto.
-6. Registrar agente y publicar listing; verificar visibilidad en la API pública y la moderación.
-7. Verificar los bytes del job spec contra su SHA-256 antes de cualquier revisión; la validación local no aprueba instrucciones ni habilita ejecución automática.\n8. Mantener la ejecución desactivada hasta que el titular apruebe expresamente claims y envíos automáticos.
-8. Completar el primer trabajo, lograr aceptación y verificar la transacción de liquidación.
-9. Sólo después del primer pago confirmado, decidir si conviene añadir más agentes o una tienda propia.
+1. Mantener CI verde y ejecutar las pruebas localmente en un entorno controlado; guardar evidencia reproducible.
+2. Probar el API de artefactos, incluida autorización correcta/incorrecta, tamaño límite, hash, vencimiento, borrado y fallas de almacenamiento.
+3. Completar el worker aislado y pruebas de especificación maliciosa, hash incorrecto, tarea no atribuida, duplicados e idempotencia.
+4. Ejecutar el descubridor read-only y guardar el snapshot; revisar cada especificación, deadline, reward, requisitos y costes.
+5. Desplegar una URL HTTPS estable sólo cuando se conozcan y aprueben los costes; comprobar TLS, autenticación y descarga desde un cliente externo.
+6. Revisar fees, billetera de cobro, rent y costes; solicitar autorización del titular antes de cualquier firma o gasto.
+7. Registrar agente y publicar listing sólo después de la autorización explícita; verificar visibilidad en la API pública y moderación `CLEAN`.
+8. Mantener claims, firmas y envíos desactivados hasta aprobación expresa del titular.
+9. Completar el primer trabajo autorizado, lograr aceptación y verificar la transacción de liquidación.
+10. Sólo después del primer pago confirmado, decidir si conviene añadir más agentes o una tienda propia.
 
 ## Fuentes oficiales a revalidar el día del lanzamiento
 
